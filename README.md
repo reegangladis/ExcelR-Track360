@@ -70,8 +70,16 @@ docs/
 │   ├── PAGE_INVENTORY.md               # Catalog of 30+ admin & student pages
 │   ├── ACCEPTANCE_CRITERIA.md          # Given-When-Then testable specifications
 │   └── OPEN_BUSINESS_QUESTIONS.md      # Unresolved decisions & stakeholder options
-├── architecture/                       # System architecture & component design (Phase 2)
-├── database/                           # Relational schemas & Alembic migrations (Phase 3)
+├── architecture/
+│   ├── SYSTEM_ARCHITECTURE.md          # Modular monolith design, boundaries & lifecycle
+│   ├── PROJECT_STRUCTURE.md            # Monorepo layout, modules & conventions
+│   ├── API_DESIGN.md                   # RESTful standards, envelopes & endpoint inventory
+│   ├── SECURITY_DESIGN.md              # Session lifecycle, Argon2id, RBAC, PII & audit
+│   ├── TESTING_STRATEGY.md             # Quality gates, Pytest, Vitest & E2E scenarios
+│   └── PHASE_2_DECISIONS.md            # ADRs, tradeoffs & schema adaptability
+├── database/
+│   ├── ERD.md                          # Mermaid entity relationship diagrams & indexes
+│   └── DATABASE_SCHEMA.md              # 37-table PostgreSQL DDL schema & constraints
 ├── workflows/                          # State machines & sequence flows
 └── testing/                            # Quality assurance & automated test plans
 ```
@@ -85,8 +93,8 @@ Track360 is built systematically across 18 development phases to guarantee produ
 | Phase | Phase Name | Focus & Primary Deliverables | Status |
 | :---: | :--- | :--- | :---: |
 | **01** | **Requirements & Business Analysis** | BRD, SRS, Role Matrix, Business Rules, Workflows, Page Inventory, Acceptance Criteria, Open Questions. | **COMPLETE** |
-| **02** | **System Architecture & Technical Design** | Component boundaries, API contracts, session security design, error schemas, state machine models. | *Up Next* |
-| **03** | **Database Schema Design & Data Modeling** | PostgreSQL DDL, SQLAlchemy 2.0 models, Alembic migrations, indexing strategy, audit schemas. | Planned |
+| **02** | **System Architecture & Database Design** | Modular Monolith architecture, monorepo layout, ERD, 37-table DDL schema, API design, security architecture, testing strategy, ADRs. | **COMPLETE** |
+| **03** | **Database Schema Design & Data Modeling** | SQLAlchemy 2.0 async models, declarative base, Alembic migrations, database test fixtures. | *Up Next* |
 | **04** | **Project Scaffolding & DevOps Foundation** | Docker Compose setup, FastAPI backend skeleton, Vite frontend workspace, linting & CI scripts. | Planned |
 | **05** | **Authentication, Sessions & RBAC Foundation** | Cookie session management, password hashing, role guard middlewares, authentication endpoints. | Planned |
 | **06** | **Candidate Management Module** | Authoritative profiles, CSV batch import with dry-run validation, candidate search & filters. | Planned |
@@ -107,15 +115,15 @@ Track360 is built systematically across 18 development phases to guarantee produ
 
 ## 5. Current Development Phase
 
-- **Active Phase:** Phase 1 – Requirements & Business Analysis
-- **Milestone Status:** **100% Complete.** All 8 required Phase 1 specifications have been authored, peer-referenced, and validated under `docs/requirements/`.
+- **Active Phase:** Phase 2 – System Architecture & Database Design
+- **Milestone Status:** **100% Complete.** All architectural specifications, entity relationship diagrams, database schemas, API designs, security architectures, testing strategies, and architectural decision records have been delivered under `docs/architecture/` and `docs/database/`.
 
 ---
 
-## 6. Instructions for Progressing to Phase 2
+## 6. Instructions for Progressing to Phase 3
 
-To proceed to **Phase 2: System Architecture & Technical Design**, run the following operational steps:
-1. Review the open business decisions documented in [`OPEN_BUSINESS_QUESTIONS.md`](file:///c:/Users/ExcelR/OneDrive/Desktop/ExcelR%20Track360/docs/requirements/OPEN_BUSINESS_QUESTIONS.md) with organizational stakeholders.
-2. Ensure no uncommitted working files remain in the repository.
-3. Prompt the assistant:
-   > *"Phase 1 is verified and complete. Proceed to Phase 2: System Architecture & Technical Design."*
+To proceed to **Phase 3: Database Schema Design & Data Modeling (SQLAlchemy 2.0 & Alembic)**:
+1. Review the database schema and ADR records with backend and infrastructure leads.
+2. Confirm the 3 stakeholder questions documented in [`PHASE_2_DECISIONS.md`](file:///c:/Users/ExcelR/OneDrive/Desktop/ExcelR%20Track360/docs/architecture/PHASE_2_DECISIONS.md#3-decisions-requiring-stakeholder-confirmation-before-phase-3).
+3. Instruct the assistant:
+   > *"Phase 2 is verified and complete. Proceed to Phase 3: Database Schema Design & Data Modeling."*
