@@ -45,6 +45,7 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+*.tsbuildinfo
 
 # Storage & Uploads
 storage/uploads/*

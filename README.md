@@ -81,7 +81,9 @@ docs/
 │   ├── ERD.md                          # Mermaid entity relationship diagrams & indexes
 │   └── DATABASE_SCHEMA.md              # 37-table PostgreSQL DDL schema & constraints
 ├── workflows/                          # State machines & sequence flows
-└── testing/                            # Quality assurance & automated test plans
+└── testing/
+    ├── README.md                       # Quality assurance & automated test plans
+    └── PHASE_3_TEST_REPORT.md          # Phase 3 verification report & test results
 ```
 
 ---
@@ -94,8 +96,8 @@ Track360 is built systematically across 18 development phases to guarantee produ
 | :---: | :--- | :--- | :---: |
 | **01** | **Requirements & Business Analysis** | BRD, SRS, Role Matrix, Business Rules, Workflows, Page Inventory, Acceptance Criteria, Open Questions. | **COMPLETE** |
 | **02** | **System Architecture & Database Design** | Modular Monolith architecture, monorepo layout, ERD, 37-table DDL schema, API design, security architecture, testing strategy, ADRs. | **COMPLETE** |
-| **03** | **Database Schema Design & Data Modeling** | SQLAlchemy 2.0 async models, declarative base, Alembic migrations, database test fixtures. | *Up Next* |
-| **04** | **Project Scaffolding & DevOps Foundation** | Docker Compose setup, FastAPI backend skeleton, Vite frontend workspace, linting & CI scripts. | Planned |
+| **03** | **Project Foundation & Environment Setup** | Runnable FastAPI backend, React 18 + Vite frontend, PostgreSQL dev config, health & ready probes, automated test suites. | **COMPLETE** |
+| **04** | **Database Schema Design & Data Modeling** | Declarative SQLAlchemy 2.0 models (37 tables), UUIDv7 keys, Alembic migrations, database test fixtures. | *Up Next* |
 | **05** | **Authentication, Sessions & RBAC Foundation** | Cookie session management, password hashing, role guard middlewares, authentication endpoints. | Planned |
 | **06** | **Candidate Management Module** | Authoritative profiles, CSV batch import with dry-run validation, candidate search & filters. | Planned |
 | **07** | **Assignment Authoring & Allocation Engine** | Template editor, rubric parameters, batch & individual student allocations, deadline rules. | Planned |
@@ -111,19 +113,78 @@ Track360 is built systematically across 18 development phases to guarantee produ
 | **17** | **Operational Reporting & Audit Log Explorer** | Executive cockpits, SLA metrics, immutable audit explorer, role-governed CSV/Excel exports. | Planned |
 | **18** | **End-to-End Hardening, QA & Production Readiness** | Integration test suite, security penetration audit, performance load testing, operational runbooks. | Planned |
 
----
-
-## 5. Current Development Phase
-
-- **Active Phase:** Phase 2 – System Architecture & Database Design
-- **Milestone Status:** **100% Complete.** All architectural specifications, entity relationship diagrams, database schemas, API designs, security architectures, testing strategies, and architectural decision records have been delivered under `docs/architecture/` and `docs/database/`.
+> **Roadmap Alignment Note:** The original 18-phase roadmap establishes Phase 3 as **Project Foundation & Environment Setup** and Phase 4 as **Database Schema Design & Data Modeling**. The Phase 2 summary table had tentatively referenced database modeling under the Phase 3 label; this discrepancy is formally reconciled by preserving the original 18-phase sequence.
 
 ---
 
-## 6. Instructions for Progressing to Phase 3
+## 5. Developer Quickstart Guide
 
-To proceed to **Phase 3: Database Schema Design & Data Modeling (SQLAlchemy 2.0 & Alembic)**:
-1. Review the database schema and ADR records with backend and infrastructure leads.
-2. Confirm the 3 stakeholder questions documented in [`PHASE_2_DECISIONS.md`](file:///c:/Users/ExcelR/OneDrive/Desktop/ExcelR%20Track360/docs/architecture/PHASE_2_DECISIONS.md#3-decisions-requiring-stakeholder-confirmation-before-phase-3).
+### Prerequisites
+- **Python:** 3.11+
+- **Node.js:** 20+ (tested on v24.19) and **npm:** 10+
+- **PostgreSQL:** 15+ or 16 (local service or Docker)
+- **Docker & Docker Compose** (optional for containerized PostgreSQL)
+
+### 1. Environment Setup
+```bash
+# Backend environment setup
+cp backend/.env.example backend/.env
+
+# Frontend environment setup
+cp frontend/.env.example frontend/.env.local
+```
+
+### 2. Running the Backend
+```bash
+cd backend
+# Run development server
+uvicorn app.main:app --reload --port 8000
+```
+- Swagger Docs: `http://localhost:8000/api/v1/docs`
+- Health Probe: `http://localhost:8000/api/v1/health`
+- Readiness Probe: `http://localhost:8000/api/v1/ready`
+
+### 3. Running the Frontend
+```bash
+cd frontend
+# Install dependencies
+npm install
+
+# Start Vite development server
+npm run dev
+```
+- Frontend UI: `http://localhost:5173`
+
+### 4. Running PostgreSQL with Docker Compose
+```bash
+docker compose up -d postgres
+```
+
+### 5. Automated Testing
+```bash
+# Run backend tests (8 passing unit & integration tests)
+python -m pytest backend/tests
+
+# Run frontend tests (Vitest + React Testing Library)
+cd frontend && npm test
+
+# Run frontend TypeScript type-check
+cd frontend && npm run lint
+```
+
+---
+
+## 6. Current Development Phase
+
+- **Active Phase:** Phase 3 – Project Foundation & Environment Setup
+- **Milestone Status:** **100% Complete.** Runnable backend, React frontend, Docker Compose configuration, health and readiness probes, and automated test suites verified.
+
+---
+
+## 7. Instructions for Progressing to Phase 4
+
+To proceed to **Phase 4: Database Schema Design & Data Modeling**:
+1. Verify that both backend and frontend test suites are passing.
+2. Ensure no uncommitted working files remain in the repository.
 3. Instruct the assistant:
-   > *"Phase 2 is verified and complete. Proceed to Phase 3: Database Schema Design & Data Modeling."*
+   > *"Phase 3 is verified and complete. Proceed to Phase 4: Database Schema Design & Data Modeling."*
