@@ -1,12 +1,17 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Layers, Activity, Users, FileText, FolderGit2, Award, Briefcase, LogOut, LogIn } from 'lucide-react';
+import { Layers, Activity, Users, FileText, FolderGit2, Award, Briefcase, LogOut, LogIn, History } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { NotificationBell } from '@/components/NotificationBell';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+
+  const isSuperAdminOrOps = user?.roles.some((r) =>
+    ['ROLE_SUPER_ADMIN', 'ROLE_OPS_ADMIN', 'ROLE_READ_ONLY'].includes(r)
+  );
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: Activity },
@@ -15,6 +20,7 @@ export const Navbar: React.FC = () => {
     { name: 'Projects', path: '/projects', icon: FolderGit2 },
     { name: 'Internships', path: '/internships', icon: Briefcase },
     { name: 'Certificates', path: '/certificates', icon: Award },
+    ...(isSuperAdminOrOps ? [{ name: 'Audit Trail', path: '/audit', icon: History }] : []),
   ];
 
   const handleLogout = async () => {
@@ -73,11 +79,12 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center space-x-3">
             <div className="hidden sm:flex items-center space-x-2 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Phase 4: Auth Active</span>
+              <span>Phase 13: Live Alerts Active</span>
             </div>
 
             {isAuthenticated && user ? (
               <div className="flex items-center gap-3 pl-2 border-l border-slate-200">
+                <NotificationBell />
                 <div className="hidden lg:flex flex-col text-right">
                   <span className="text-xs font-semibold text-slate-800 leading-tight">
                     {user.full_name}

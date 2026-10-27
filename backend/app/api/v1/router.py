@@ -10,6 +10,8 @@ from app.modules.assignments.router import router as assignments_router
 from app.modules.projects.router import router as projects_router
 from app.modules.internships.router import router as internships_router
 from app.modules.certificates.router import router as certificates_router
+from app.modules.notifications.router import router as notifications_router
+from app.modules.audit.router import router as audit_router
 
 api_v1_router = APIRouter()
 
@@ -23,5 +25,5 @@ api_v1_router.include_router(assignments_router, prefix="", tags=["Assignments &
 api_v1_router.include_router(projects_router, prefix="", tags=["Projects & Milestones"])
 api_v1_router.include_router(internships_router, prefix="", tags=["Internships"])
 api_v1_router.include_router(certificates_router, prefix="", tags=["Certificates"])
-# api_v1_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
-# api_v1_router.include_router(audit.router, prefix="/audit-logs", tags=["Audit"])
+api_v1_router.include_router(notifications_router, prefix="", tags=["Notifications"])
+api_v1_router.include_router(audit_router, prefix="", tags=["Audit"])

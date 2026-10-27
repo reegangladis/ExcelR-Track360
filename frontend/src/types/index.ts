@@ -718,5 +718,90 @@ export interface CertificateListResponse {
   page_size: number;
 }
 
+// ============================================================================
+// Domain 6: Notifications & Audit Trail (Phase 13)
+// ============================================================================
+export interface NotificationEventItem {
+  id: string;
+  recipient_user_id: string;
+  event_type: string;
+  title: string;
+  body: string;
+  action_url?: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationListResponse {
+  items: NotificationEventItem[];
+  total: number;
+  unread_count: number;
+  page: number;
+  page_size: number;
+}
+
+export interface NotificationUnreadCountResponse {
+  unread_count: number;
+}
+
+export interface NotificationDispatchCreate {
+  recipient_user_ids: string[];
+  event_type: string;
+  title: string;
+  body: string;
+  action_url?: string | null;
+  queue_email?: boolean;
+  email_subject?: string | null;
+  email_html?: string | null;
+}
+
+export interface EmailQueueItem {
+  id: string;
+  recipient_email: string;
+  subject: string;
+  body_html: string;
+  delivery_status: 'PENDING' | 'SENT' | 'FAILED' | 'RETRYING';
+  attempt_count: number;
+  max_attempts: number;
+  last_error_message?: string | null;
+  next_retry_at_utc?: string | null;
+  sent_at_utc?: string | null;
+  created_at: string;
+}
+
+export interface EmailQueueListResponse {
+  items: EmailQueueItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface EmailRetryRequest {
+  queue_ids?: string[];
+}
+
+export interface AuditLogItem {
+  id: string;
+  actor_user_id?: string | null;
+  actor_email?: string | null;
+  actor_name?: string | null;
+  actor_ip_address?: string | null;
+  actor_user_agent?: string | null;
+  action_type: string;
+  entity_type: string;
+  entity_id?: string | null;
+  pre_state?: Record<string, any> | null;
+  post_state?: Record<string, any> | null;
+  justification?: string | null;
+  created_at: string;
+}
+
+export interface AuditLogListResponse {
+  items: AuditLogItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 
 

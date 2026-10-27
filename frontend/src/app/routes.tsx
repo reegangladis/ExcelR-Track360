@@ -8,7 +8,8 @@ import { ProjectsPage } from '@/pages/ProjectsPage';
 import { InternshipsPage } from '@/pages/InternshipsPage';
 import { CertificatesPage } from '@/pages/CertificatesPage';
 import { PublicVerifyPage } from '@/pages/PublicVerifyPage';
-import { ModulesPlaceholderPage } from '@/pages/ModulesPlaceholderPage';
+import { NotificationsPage } from '@/pages/NotificationsPage';
+import { AuditLogsPage } from '@/pages/AuditLogsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 
@@ -74,8 +75,20 @@ export const routes: RouteObject[] = [
         ),
       },
       {
+        path: 'notifications',
+        element: (
+          <ProtectedRoute>
+            <NotificationsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: 'audit',
-        element: <ModulesPlaceholderPage />,
+        element: (
+          <ProtectedRoute>
+            <AuditLogsPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: '*',
