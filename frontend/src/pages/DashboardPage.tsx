@@ -8,6 +8,7 @@ import {
   Briefcase, 
   Award, 
   ShieldCheck, 
+  Bell,
   ArrowRight,
   Sparkles,
   Terminal
@@ -20,7 +21,7 @@ export const DashboardPage: React.FC = () => {
       phase: 'Phase 6',
       icon: Users,
       description: 'Single golden profile, de-duplication, batch CSV ingestion, and lifecycle status tracking.',
-      status: 'Architected',
+      status: 'Live & Operational',
       path: '/candidates',
     },
     {
@@ -28,7 +29,7 @@ export const DashboardPage: React.FC = () => {
       phase: 'Phases 7–9',
       icon: FileText,
       description: 'Multi-stage submission ingestion, server UTC timestamps, rubric grading, and resubmissions.',
-      status: 'Architected',
+      status: 'Live & Operational',
       path: '/assignments',
     },
     {
@@ -36,7 +37,7 @@ export const DashboardPage: React.FC = () => {
       phase: 'Phases 10–13',
       icon: FolderGit2,
       description: 'Configurable group builder, deliverable evaluations, group readiness engine, and 3-project cap.',
-      status: 'Architected',
+      status: 'Live & Operational',
       path: '/projects',
     },
     {
@@ -44,7 +45,7 @@ export const DashboardPage: React.FC = () => {
       phase: 'Phase 14',
       icon: Briefcase,
       description: 'Decoupled calendar date tracking and duration multiplier policy (1=3mo, 2=6mo, 3=9mo).',
-      status: 'Architected',
+      status: 'Live & Operational',
       path: '/internships',
     },
     {
@@ -52,15 +53,23 @@ export const DashboardPage: React.FC = () => {
       phase: 'Phase 15',
       icon: Award,
       description: 'Two-tier approval gate, unique serials, QR code embedding, and public verification portal.',
-      status: 'Architected',
+      status: 'Live & Operational',
       path: '/certificates',
+    },
+    {
+      title: 'In-App Alerts & Email Queue',
+      phase: 'Phase 13',
+      icon: Bell,
+      description: 'Real-time notification bell with polling badges, transactional email queue, and broadcast alerts.',
+      status: 'Live & Operational',
+      path: '/notifications',
     },
     {
       title: 'Audit Logs & Governance',
       phase: 'Phase 17',
       icon: ShieldCheck,
       description: 'Immutable append-only audit trail, role-based export controls, and exception tracking.',
-      status: 'Architected',
+      status: 'Live & Operational',
       path: '/audit',
     },
   ];
@@ -72,7 +81,7 @@ export const DashboardPage: React.FC = () => {
         <div className="relative z-10 max-w-3xl space-y-4">
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-brand-500/20 text-brand-300 border border-brand-500/30 backdrop-blur-sm">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Platform Foundation Active — Phase 3</span>
+            <span>Phase 13 Active — Alerts, Communication Queue & Forensic Audit Trail Operational</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
