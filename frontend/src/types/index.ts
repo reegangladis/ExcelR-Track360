@@ -486,5 +486,104 @@ export interface GroupAdvanceRequest {
   allow_cap_extension?: boolean;
 }
 
+export interface InternshipMilestoneItem {
+  id: string;
+  milestone_tier: number;
+  title: string;
+  project_id?: string | null;
+  project_code?: string | null;
+  project_title?: string | null;
+  accredited_months: number;
+  status: 'PENDING' | 'IN_PROGRESS' | 'ACHIEVED' | 'WAIVED' | string;
+  achieved_at?: string | null;
+  verified_by_id?: string | null;
+  verified_by_name?: string | null;
+  notes?: string | null;
+}
+
+export interface InternshipRecordItem {
+  id: string;
+  candidate_id: string;
+  candidate_name: string;
+  candidate_number?: string | null;
+  candidate_email?: string | null;
+  track_id: string;
+  track_code: string;
+  track_title: string;
+  start_date: string;
+  expected_end_date?: string | null;
+  actual_completion_date?: string | null;
+  accredited_duration_months: number;
+  internship_status: 'ACTIVE' | 'COMPLETED' | 'TERMINATED' | 'ELIGIBLE' | string;
+  company_name?: string | null;
+  coordinator_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  milestones: InternshipMilestoneItem[];
+}
+
+export interface InternshipListItem {
+  id: string;
+  candidate_id: string;
+  candidate_name: string;
+  candidate_number?: string | null;
+  track_code: string;
+  start_date: string;
+  expected_end_date?: string | null;
+  actual_completion_date?: string | null;
+  accredited_duration_months: number;
+  internship_status: string;
+  company_name?: string | null;
+}
+
+export interface InternshipPaginatedResponse {
+  items: InternshipListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface InternshipCreateRequest {
+  candidate_id: string;
+  track_id: string;
+  start_date: string;
+  expected_end_date?: string;
+  company_name?: string;
+  coordinator_notes?: string;
+  initial_status?: string;
+}
+
+export interface InternshipUpdateRequest {
+  start_date?: string;
+  expected_end_date?: string;
+  actual_completion_date?: string;
+  company_name?: string;
+  coordinator_notes?: string;
+  internship_status?: string;
+}
+
+export interface InternshipCompleteRequest {
+  actual_completion_date?: string;
+  completion_notes?: string;
+}
+
+export interface InternshipTerminateRequest {
+  reason: string;
+}
+
+export interface CandidateInternshipEligibilityResponse {
+  candidate_id: string;
+  candidate_name: string;
+  track_id: string;
+  track_title: string;
+  is_eligible: boolean;
+  approved_projects_count: number;
+  recommended_duration_months: number;
+  active_group_count: number;
+  eligibility_reasons: string[];
+  existing_internship_id?: string | null;
+}
+
 
 

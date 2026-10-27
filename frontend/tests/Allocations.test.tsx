@@ -249,7 +249,7 @@ describe('Phase 10: Project Allocation & Group Completion Flow', () => {
       } as any,
     ]);
     vi.mocked(api.getBatches).mockResolvedValue(mockBatches);
-    vi.mocked(api.getProjects).mockResolvedValue(mockProjects);
+    vi.mocked(api.getProjects).mockResolvedValue(mockProjects as any);
     vi.mocked(api.getProjectGroups).mockResolvedValue({
       items: mockGroups,
       total: 1,
@@ -258,7 +258,7 @@ describe('Phase 10: Project Allocation & Group Completion Flow', () => {
       total_pages: 1,
     });
     vi.mocked(api.getProjectGroup).mockResolvedValue(mockGroupDetail);
-    vi.mocked(api.getCandidates).mockResolvedValue(mockCandidates);
+    vi.mocked(api.getCandidates).mockResolvedValue(mockCandidates as any);
     vi.mocked(api.getGroupReadiness).mockResolvedValue(mockReadiness);
     vi.mocked(api.listGroupSubmissions).mockResolvedValue(mockSubmissions);
   });

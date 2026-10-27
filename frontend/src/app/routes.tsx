@@ -5,6 +5,7 @@ import { LoginPage } from '@/pages/LoginPage';
 import { CandidatesPage } from '@/pages/CandidatesPage';
 import { AssignmentsPage } from '@/pages/AssignmentsPage';
 import { ProjectsPage } from '@/pages/ProjectsPage';
+import { InternshipsPage } from '@/pages/InternshipsPage';
 import { ModulesPlaceholderPage } from '@/pages/ModulesPlaceholderPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -48,7 +49,11 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'internships',
-        element: <ModulesPlaceholderPage />,
+        element: (
+          <ProtectedRoute>
+            <InternshipsPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'certificates',
