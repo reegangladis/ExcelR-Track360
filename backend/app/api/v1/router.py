@@ -5,6 +5,7 @@ Mounts all domain routers under the /api/v1 prefix.
 from fastapi import APIRouter
 from app.api.v1.endpoints import system
 from app.modules.auth.router import router as auth_router
+from app.modules.candidates.router import router as candidates_router
 
 api_v1_router = APIRouter()
 
@@ -13,7 +14,7 @@ api_v1_router.include_router(system.router)
 
 # Domain Module Routers
 api_v1_router.include_router(auth_router, prefix="/auth", tags=["Auth"])
-# api_v1_router.include_router(candidates.router, prefix="/candidates", tags=["Candidates"])
+api_v1_router.include_router(candidates_router, prefix="", tags=["Candidates & Cohorts"])
 # api_v1_router.include_router(assignments.router, prefix="/assignments", tags=["Assignments"])
 # api_v1_router.include_router(projects.router, prefix="/projects", tags=["Projects"])
 # api_v1_router.include_router(internships.router, prefix="/internships", tags=["Internships"])

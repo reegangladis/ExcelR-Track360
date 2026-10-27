@@ -2,8 +2,10 @@ import { RouteObject } from 'react-router-dom';
 import { Layout } from './Layout';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { LoginPage } from '@/pages/LoginPage';
+import { CandidatesPage } from '@/pages/CandidatesPage';
 import { ModulesPlaceholderPage } from '@/pages/ModulesPlaceholderPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 export const routes: RouteObject[] = [
   {
@@ -20,7 +22,11 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'candidates',
-        element: <ModulesPlaceholderPage />,
+        element: (
+          <ProtectedRoute>
+            <CandidatesPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'assignments',
