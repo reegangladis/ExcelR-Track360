@@ -20,6 +20,7 @@ vi.mock('../src/lib/api', () => ({
       dependencies: { database: 'healthy' },
       timestamp: '2026-10-24T12:00:00Z',
     }),
+    getMe: vi.fn().mockRejectedValue(new Error('Unauthenticated')),
   },
 }));
 

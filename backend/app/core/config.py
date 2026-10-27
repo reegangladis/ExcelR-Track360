@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     
     # Database Settings
     DATABASE_HOST: str = Field(default="localhost", description="PostgreSQL host")
-    DATABASE_PORT: int = Field(default=5432, description="PostgreSQL port")
+    DATABASE_PORT: int = Field(default=5433, description="PostgreSQL port")
     DATABASE_USER: str = Field(default="track360_user", description="PostgreSQL username")
     DATABASE_PASSWORD: str = Field(default="track360_secure_pass", description="PostgreSQL password")
     DATABASE_NAME: str = Field(default="track360_dev", description="PostgreSQL database name")
@@ -79,7 +79,7 @@ class Settings(BaseSettings):
         )
         
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "backend/.env"),
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore"

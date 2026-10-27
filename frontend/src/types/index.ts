@@ -37,3 +37,26 @@ export interface ApiProblemDetails {
     type?: string;
   }>;
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  phone?: string | null;
+  status: string;
+  is_verified: boolean;
+  last_login_at?: string | null;
+  roles: string[];
+  permissions: string[];
+}
+
+export interface LoginResponse {
+  user: UserProfile;
+  csrf_token: string;
+  message: string;
+}
+
+export interface PasswordResetResponse {
+  message: string;
+  reset_token?: string | null;
+}

@@ -1,10 +1,15 @@
 import { RouteObject } from 'react-router-dom';
 import { Layout } from './Layout';
 import { DashboardPage } from '@/pages/DashboardPage';
+import { LoginPage } from '@/pages/LoginPage';
 import { ModulesPlaceholderPage } from '@/pages/ModulesPlaceholderPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 export const routes: RouteObject[] = [
+  {
+    path: '/login',
+    element: <LoginPage />,
+  },
   {
     path: '/',
     element: <Layout />,

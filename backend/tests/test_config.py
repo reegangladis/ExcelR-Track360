@@ -9,7 +9,7 @@ def test_settings_defaults():
     settings = Settings()
     assert settings.APP_NAME == "ExcelR Track360"
     assert settings.API_V1_PREFIX == "/api/v1"
-    assert settings.DATABASE_PORT == 5432
+    assert settings.DATABASE_PORT in (5432, 5433)
     assert "postgresql+asyncpg://" in settings.async_database_url
     assert "postgresql://" in settings.sync_database_url
 

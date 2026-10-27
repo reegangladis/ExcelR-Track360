@@ -32,18 +32,29 @@ _engine: Optional[AsyncEngine] = None
 _session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 
 
+from sqlalchemy.pool import NullPool
+
 def get_engine() -> AsyncEngine:
     """Returns or initializes the global async SQLAlchemy engine."""
     global _engine, _session_factory
     if _engine is None:
-        logger.info(f"Initializing async database engine: {settings.masked_database_url}")
+        curr_settings = get_settings()
+        logger.info(f"Initializing async database engine: {curr_settings.masked_database_url}")
+        
+        engine_kwargs: Dict[str, Any] = {
+            "echo": curr_settings.DEBUG,
+        }
+        if curr_settings.APP_ENV == "test":
+            engine_kwargs["poolclass"] = NullPool
+        else:
+            engine_kwargs["pool_size"] = curr_settings.DATABASE_POOL_SIZE
+            engine_kwargs["max_overflow"] = curr_settings.DATABASE_MAX_OVERFLOW
+            engine_kwargs["pool_timeout"] = curr_settings.DATABASE_TIMEOUT_SECONDS
+            engine_kwargs["pool_pre_ping"] = True
+
         _engine = create_async_engine(
-            settings.async_database_url,
-            pool_size=settings.DATABASE_POOL_SIZE,
-            max_overflow=settings.DATABASE_MAX_OVERFLOW,
-            pool_timeout=settings.DATABASE_TIMEOUT_SECONDS,
-            pool_pre_ping=True,
-            echo=settings.DEBUG,
+            curr_settings.async_database_url,
+            **engine_kwargs
         )
         _session_factory = async_sessionmaker(
             bind=_engine,
