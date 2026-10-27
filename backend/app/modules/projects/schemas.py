@@ -214,6 +214,13 @@ class ProjectGroupResponse(BaseModel):
     project_title: Optional[str] = None
     group_name: str
     group_status: str
+    mentor_id: Optional[uuid.UUID] = None
+    mentor_name: Optional[str] = None
+    current_milestone_id: Optional[uuid.UUID] = None
+    current_milestone_title: Optional[str] = None
+    readiness_status: str = "NOT_READY"
+    allocated_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
     min_size: int
     target_size: int
     max_size: int
@@ -231,8 +238,11 @@ class ProjectGroupListItem(BaseModel):
     batch_code: Optional[str] = None
     project_id: Optional[uuid.UUID] = None
     project_code: Optional[str] = None
+    project_title: Optional[str] = None
     group_name: str
     group_status: str
+    readiness_status: str = "NOT_READY"
+    mentor_name: Optional[str] = None
     member_count: int
     min_size: int
     target_size: int
@@ -248,4 +258,123 @@ class ProjectGroupPaginatedResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+# ==============================================================
+# Phase 10: Project Allocation & Completion Schemas
+# ==============================================================
+
+class MentorAssignRequest(BaseModel):
+    mentor_id: uuid.UUID
+
+
+class ProjectAllocationRequest(BaseModel):
+    project_id: uuid.UUID
+    waive_prerequisites: bool = False
+    waiver_justification: Optional[str] = None
+
+
+class ProjectAllocationItem(BaseModel):
+    id: uuid.UUID
+    group_id: uuid.UUID
+    project_id: uuid.UUID
+    project_code: Optional[str] = None
+    project_title: Optional[str] = None
+    tier: str
+    status: str
+    final_score: Optional[float] = None
+    allocated_at: datetime
+    completed_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProjectGroupSubmissionCreate(BaseModel):
+    submitted_by_candidate_id: uuid.UUID
+    repo_url: Optional[str] = None
+    live_demo_url: Optional[str] = None
+    documentation_url: Optional[str] = None
+    file_asset_id: Optional[uuid.UUID] = None
+    notes: Optional[str] = None
+    milestone_id: Optional[uuid.UUID] = None
+
+
+class ProjectGroupSubmissionReviewRequest(BaseModel):
+    status: str = Field(..., pattern="^(APPROVED|CORRECTIONS_REQUESTED)$")
+    score: Optional[float] = Field(None, ge=0, le=100)
+    feedback: Optional[str] = None
+    rubric_scores: List[dict] = Field(default_factory=list)
+
+
+class ProjectGroupSubmissionResponse(BaseModel):
+    id: uuid.UUID
+    group_id: uuid.UUID
+    project_id: uuid.UUID
+    project_title: Optional[str] = None
+    milestone_id: Optional[uuid.UUID] = None
+    milestone_title: Optional[str] = None
+    submitted_by_id: uuid.UUID
+    submitted_by_name: Optional[str] = None
+    attempt_number: int
+    repo_url: Optional[str] = None
+    live_demo_url: Optional[str] = None
+    documentation_url: Optional[str] = None
+    file_asset_id: Optional[uuid.UUID] = None
+    notes: Optional[str] = None
+    status: str
+    score: Optional[float] = None
+    rubric_scores: List[dict] = Field(default_factory=list)
+    feedback: Optional[str] = None
+    reviewed_by_id: Optional[uuid.UUID] = None
+    reviewed_by_name: Optional[str] = None
+    submitted_at: datetime
+    reviewed_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProjectProgressionRequestCreate(BaseModel):
+    candidate_id: uuid.UUID
+    notes: Optional[str] = None
+
+
+class ProjectProgressionRequestItem(BaseModel):
+    id: uuid.UUID
+    candidate_id: uuid.UUID
+    candidate_name: Optional[str] = None
+    candidate_number: Optional[str] = None
+    status: str
+    requested_at: datetime
+    notes: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GroupReadinessResponse(BaseModel):
+    group_id: uuid.UUID
+    group_name: str
+    group_status: str
+    readiness_status: str
+    current_project_id: Optional[uuid.UUID] = None
+    current_project_title: Optional[str] = None
+    current_tier: Optional[str] = None
+    current_milestone_id: Optional[uuid.UUID] = None
+    current_milestone_title: Optional[str] = None
+    deliverable_approved: bool = False
+    active_members_count: int
+    requests_count: int
+    ready_candidate_ids: List[uuid.UUID] = Field(default_factory=list)
+    pending_candidate_ids: List[uuid.UUID] = Field(default_factory=list)
+    pending_candidate_names: List[str] = Field(default_factory=list)
+    can_advance: bool = False
+    latest_submission_status: Optional[str] = None
+    latest_submission_score: Optional[float] = None
+    progression_requests: List[ProjectProgressionRequestItem] = Field(default_factory=list)
+
+
+class GroupAdvanceRequest(BaseModel):
+    next_project_id: Optional[uuid.UUID] = None
+    override_justification: Optional[str] = None
+    allow_cap_extension: bool = False
+
 

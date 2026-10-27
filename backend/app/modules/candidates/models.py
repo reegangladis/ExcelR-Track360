@@ -124,6 +124,10 @@ class Candidate(Base):
         DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
     )
 
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip()
+
     enrollments: Mapped[List["Enrollment"]] = relationship(
         "Enrollment", back_populates="candidate", cascade="all, delete-orphan"
     )

@@ -158,6 +158,19 @@ class User(Base):
         onupdate=utc_now,
     )
 
+    @property
+    def is_active(self) -> bool:
+        return self.status == "ACTIVE"
+
+    @property
+    def first_name(self) -> str:
+        return self.full_name.split()[0] if self.full_name else ""
+
+    @property
+    def last_name(self) -> str:
+        parts = self.full_name.split() if self.full_name else []
+        return " ".join(parts[1:]) if len(parts) > 1 else ""
+
     roles: Mapped[List[Role]] = relationship(
         Role,
         secondary="user_roles",

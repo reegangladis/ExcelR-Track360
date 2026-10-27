@@ -359,6 +359,7 @@ export interface ProjectGroupListItem {
   batch_id: string;
   batch_code?: string | null;
   project_id?: string | null;
+  project_code?: string | null;
   project_title?: string | null;
   group_name: string;
   min_size: number;
@@ -366,6 +367,13 @@ export interface ProjectGroupListItem {
   max_size: number;
   active_members_count: number;
   status: 'FORMING' | 'ACTIVE' | 'LOCKED' | 'COMPLETED' | 'DISSOLVED';
+  mentor_id?: string | null;
+  mentor_name?: string | null;
+  current_milestone_id?: string | null;
+  current_milestone_title?: string | null;
+  readiness_status?: 'NOT_READY' | 'AWAITING_SUBMISSION' | 'SUBMITTED' | 'UNDER_REVIEW' | 'CORRECTIONS_REQUESTED' | 'APPROVED' | 'BLOCKED_PENDING_MEMBERS' | 'READY_FOR_NEXT_PROJECT' | 'COMPLETED' | string;
+  allocated_at?: string | null;
+  completed_at?: string | null;
   created_at: string;
 }
 
@@ -381,5 +389,102 @@ export interface ProjectGroupPaginated {
   page_size: number;
   total_pages: number;
 }
+
+export interface ProjectAllocationRequest {
+  project_id: string;
+  waive_prerequisites?: boolean;
+  waiver_justification?: string;
+}
+
+export interface ProjectGroupSubmissionCreate {
+  submitted_by_candidate_id: string;
+  repo_url?: string;
+  live_demo_url?: string;
+  documentation_url?: string;
+  file_asset_id?: string;
+  notes?: string;
+  milestone_id?: string;
+}
+
+export interface ProjectGroupSubmissionReviewRequest {
+  status: 'APPROVED' | 'CORRECTIONS_REQUESTED';
+  score?: number;
+  feedback?: string;
+  rubric_scores?: Array<{
+    criterion: string;
+    score: number;
+    max_score: number;
+    comment?: string;
+  }>;
+}
+
+export interface ProjectGroupSubmissionItem {
+  id: string;
+  group_id: string;
+  project_id: string;
+  project_title?: string | null;
+  milestone_id?: string | null;
+  milestone_title?: string | null;
+  submitted_by_id: string;
+  submitted_by_name?: string | null;
+  attempt_number: number;
+  repo_url?: string | null;
+  live_demo_url?: string | null;
+  documentation_url?: string | null;
+  file_asset_id?: string | null;
+  notes?: string | null;
+  status: 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'CORRECTIONS_REQUESTED';
+  score?: number | null;
+  rubric_scores: Array<{ criterion: string; score: number; max_score: number; comment?: string }>;
+  feedback?: string | null;
+  reviewed_by_id?: string | null;
+  reviewed_by_name?: string | null;
+  submitted_at: string;
+  reviewed_at?: string | null;
+}
+
+export interface ProjectProgressionRequestCreate {
+  candidate_id: string;
+  notes?: string;
+}
+
+export interface ProjectProgressionRequestItem {
+  id: string;
+  candidate_id: string;
+  candidate_name?: string | null;
+  candidate_number?: string | null;
+  status: string;
+  requested_at: string;
+  notes?: string | null;
+}
+
+export interface GroupReadinessResponse {
+  group_id: string;
+  group_name: string;
+  group_status: string;
+  readiness_status: string;
+  current_project_id?: string | null;
+  current_project_title?: string | null;
+  current_tier?: string | null;
+  current_milestone_id?: string | null;
+  current_milestone_title?: string | null;
+  deliverable_approved: boolean;
+  active_members_count: number;
+  requests_count: number;
+  ready_candidate_ids: string[];
+  pending_candidate_ids: string[];
+  pending_candidate_names: string[];
+  can_advance: boolean;
+  latest_submission_status?: string | null;
+  latest_submission_score?: number | null;
+  progression_requests: ProjectProgressionRequestItem[];
+}
+
+export interface GroupAdvanceRequest {
+  next_project_id?: string;
+  override_justification?: string;
+  allow_cap_extension?: boolean;
+}
+
 
 
