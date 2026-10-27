@@ -98,12 +98,11 @@ class Assignment(Base):
         nullable=False,
     )
 
-    track = relationship("CourseTrack", lazy="selectin")
+    track = relationship("CourseTrack")
     allocations = relationship(
         "AssignmentAllocation",
         back_populates="assignment",
         cascade="all, delete-orphan",
-        lazy="selectin",
     )
 
 
@@ -163,14 +162,13 @@ class AssignmentAllocation(Base):
         ),
     )
 
-    assignment = relationship("Assignment", back_populates="allocations", lazy="selectin")
-    batch = relationship("Batch", lazy="selectin")
-    candidate = relationship("Candidate", lazy="selectin")
+    assignment = relationship("Assignment", back_populates="allocations")
+    batch = relationship("Batch")
+    candidate = relationship("Candidate")
     submissions = relationship(
         "AssignmentSubmission",
         back_populates="allocation",
         cascade="all, delete-orphan",
-        lazy="selectin",
     )
 
 
@@ -232,13 +230,12 @@ class AssignmentSubmission(Base):
         UniqueConstraint("allocation_id", "candidate_id", name="uq_submission_allocation_candidate"),
     )
 
-    allocation = relationship("AssignmentAllocation", back_populates="submissions", lazy="selectin")
-    candidate = relationship("Candidate", lazy="selectin")
+    allocation = relationship("AssignmentAllocation", back_populates="submissions")
+    candidate = relationship("Candidate")
     attempts = relationship(
         "SubmissionAttempt",
         back_populates="submission",
         cascade="all, delete-orphan",
-        lazy="selectin",
     )
 
 
@@ -272,7 +269,7 @@ class SubmissionAttempt(Base):
         UniqueConstraint("submission_id", "attempt_number", name="uq_attempt_submission_round"),
     )
 
-    submission = relationship("AssignmentSubmission", back_populates="attempts", lazy="selectin")
+    submission = relationship("AssignmentSubmission", back_populates="attempts")
     file_asset = relationship("FileAsset", lazy="selectin")
     reviews = relationship(
         "SubmissionReview",
@@ -317,7 +314,7 @@ class SubmissionReview(Base):
         ),
     )
 
-    attempt = relationship("SubmissionAttempt", back_populates="reviews", lazy="selectin")
+    attempt = relationship("SubmissionAttempt", back_populates="reviews")
     reviewer = relationship("User", lazy="selectin")
     rubric_scores = relationship(
         "ReviewRubricScore",

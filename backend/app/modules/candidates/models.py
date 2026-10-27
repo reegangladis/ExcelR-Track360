@@ -38,7 +38,7 @@ class Course(Base):
         DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
     )
 
-    tracks: Mapped[List["CourseTrack"]] = relationship("CourseTrack", back_populates="course", lazy="selectin")
+    tracks: Mapped[List["CourseTrack"]] = relationship("CourseTrack", back_populates="course")
 
 
 class CourseTrack(Base):
@@ -63,7 +63,7 @@ class CourseTrack(Base):
     )
 
     course: Mapped["Course"] = relationship("Course", back_populates="tracks")
-    batches: Mapped[List["Batch"]] = relationship("Batch", back_populates="track", lazy="selectin")
+    batches: Mapped[List["Batch"]] = relationship("Batch", back_populates="track")
 
 
 class Batch(Base):
@@ -93,7 +93,7 @@ class Batch(Base):
     )
 
     track: Mapped["CourseTrack"] = relationship("CourseTrack", back_populates="batches")
-    enrollments: Mapped[List["Enrollment"]] = relationship("Enrollment", back_populates="batch", lazy="selectin")
+    enrollments: Mapped[List["Enrollment"]] = relationship("Enrollment", back_populates="batch")
 
 
 class Candidate(Base):
@@ -125,13 +125,13 @@ class Candidate(Base):
     )
 
     enrollments: Mapped[List["Enrollment"]] = relationship(
-        "Enrollment", back_populates="candidate", cascade="all, delete-orphan", lazy="selectin"
+        "Enrollment", back_populates="candidate", cascade="all, delete-orphan"
     )
     notes: Mapped[List["CandidateNote"]] = relationship(
-        "CandidateNote", back_populates="candidate", cascade="all, delete-orphan", lazy="selectin"
+        "CandidateNote", back_populates="candidate", cascade="all, delete-orphan"
     )
     status_history: Mapped[List["CandidateStatusHistory"]] = relationship(
-        "CandidateStatusHistory", back_populates="candidate", cascade="all, delete-orphan", lazy="selectin"
+        "CandidateStatusHistory", back_populates="candidate", cascade="all, delete-orphan"
     )
 
 
@@ -162,7 +162,7 @@ class Enrollment(Base):
     )
 
     candidate: Mapped["Candidate"] = relationship("Candidate", back_populates="enrollments")
-    batch: Mapped["Batch"] = relationship("Batch", back_populates="enrollments", lazy="selectin")
+    batch: Mapped["Batch"] = relationship("Batch", back_populates="enrollments")
 
 
 class CandidateNote(Base):

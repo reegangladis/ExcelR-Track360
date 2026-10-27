@@ -10,17 +10,20 @@ import uuid
 from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 
 from app.core.security import utc_now
 from app.modules.audit.service import write_audit_log
-from app.modules.candidates.models import CourseTrack
-from app.modules.projects.models import Project, ProjectMilestone
+from app.modules.candidates.models import Batch, Candidate, CourseTrack, Enrollment
+from app.modules.projects.models import Project, ProjectMilestone, ProjectGroup, ProjectGroupMember
 from app.modules.projects.schemas import (
     MilestoneCreateItem,
     MilestoneUpdateItem,
     ProjectCreateRequest,
     ProjectUpdateRequest,
+    ProjectGroupCreateRequest,
+    ProjectGroupUpdateRequest,
+    GroupMemberAddRequest,
 )
 
 
@@ -338,3 +341,438 @@ class ProjectService:
         await db.commit()
         await db.refresh(milestone)
         return milestone
+
+
+class ProjectGroupService:
+    @staticmethod
+    async def create_group(
+        db: AsyncSession,
+        payload: ProjectGroupCreateRequest,
+        actor_id: uuid.UUID,
+        request_ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
+    ) -> ProjectGroup:
+        """
+        Forms a student collaboration project group within a cohort batch.
+        Enforces dynamic sizing constraints (min 2, target 4, max 5).
+        """
+        # 1. Verify batch exists
+        batch_q = select(Batch).where(Batch.id == payload.batch_id)
+        batch_res = await db.execute(batch_q)
+        batch = batch_res.scalar_one_or_none()
+        if not batch:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cohort batch not found.",
+            )
+
+        # 2. Verify project exists if provided
+        if payload.project_id:
+            prj_q = select(Project).where(Project.id == payload.project_id)
+            prj_res = await db.execute(prj_q)
+            if not prj_res.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Project specification not found.",
+                )
+
+        # 3. Check initial candidates count against bounds
+        if len(payload.initial_candidate_ids) > payload.max_size:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Initial member count ({len(payload.initial_candidate_ids)}) exceeds maximum group capacity ({payload.max_size}).",
+            )
+
+        now = utc_now()
+        group = ProjectGroup(
+            id=uuid.uuid4(),
+            batch_id=payload.batch_id,
+            project_id=payload.project_id,
+            group_name=payload.group_name.strip(),
+            group_status="FORMING",
+            min_size=payload.min_size,
+            target_size=payload.target_size,
+            max_size=payload.max_size,
+            created_by_id=actor_id,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(group)
+        await db.flush()
+
+        # 4. Validate and attach initial candidate members
+        for cand_id in payload.initial_candidate_ids:
+            # Check candidate enrollment in this batch
+            enr_q = select(Enrollment).where(
+                Enrollment.batch_id == payload.batch_id,
+                Enrollment.candidate_id == cand_id,
+                Enrollment.enrollment_status == "ACTIVE",
+            )
+            enr_res = await db.execute(enr_q)
+            if not enr_res.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Candidate {cand_id} is not actively enrolled in batch {batch.batch_code}.",
+                )
+
+            # Check candidate is not already in an active project group in this batch
+            active_mem_q = (
+                select(ProjectGroupMember)
+                .join(ProjectGroup, ProjectGroupMember.group_id == ProjectGroup.id)
+                .where(
+                    ProjectGroup.batch_id == payload.batch_id,
+                    ProjectGroupMember.candidate_id == cand_id,
+                    ProjectGroupMember.status == "ACTIVE",
+                    ProjectGroup.group_status.in_(["FORMING", "ACTIVE", "LOCKED"]),
+                )
+            )
+            active_mem_res = await db.execute(active_mem_q)
+            if active_mem_res.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Candidate {cand_id} is already a member of an active project group in this batch.",
+                )
+
+            role = "LEADER" if payload.leader_candidate_id and cand_id == payload.leader_candidate_id else "MEMBER"
+            member = ProjectGroupMember(
+                id=uuid.uuid4(),
+                group_id=group.id,
+                candidate_id=cand_id,
+                role=role,
+                status="ACTIVE",
+                joined_at=now,
+            )
+            db.add(member)
+
+        # 5. Audit Log
+        await write_audit_log(
+            db=db,
+            action="project_group:created",
+            actor_id=actor_id,
+            resource_type="project_group",
+            resource_id=str(group.id),
+            details={
+                "group_name": group.group_name,
+                "batch_id": str(group.batch_id),
+                "member_count": len(payload.initial_candidate_ids),
+                "min_size": group.min_size,
+                "target_size": group.target_size,
+                "max_size": group.max_size,
+            },
+            request_ip=request_ip,
+            user_agent=user_agent,
+        )
+
+        gid = group.id
+        await db.commit()
+        return await ProjectGroupService.get_group(db, gid)
+
+    @staticmethod
+    async def get_group(db: AsyncSession, group_id: uuid.UUID) -> ProjectGroup:
+        """Fetches full project group details with batch, project, and members."""
+        query = (
+            select(ProjectGroup)
+            .options(
+                joinedload(ProjectGroup.batch),
+                joinedload(ProjectGroup.project),
+                joinedload(ProjectGroup.members).joinedload(ProjectGroupMember.candidate),
+            )
+            .where(ProjectGroup.id == group_id)
+        )
+        res = await db.execute(query)
+        group = res.unique().scalar_one_or_none()
+        if not group:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project group not found.",
+            )
+        return group
+
+    @staticmethod
+    async def list_groups(
+        db: AsyncSession,
+        batch_id: Optional[uuid.UUID] = None,
+        group_status: Optional[str] = None,
+        project_id: Optional[uuid.UUID] = None,
+        search: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> Tuple[List[ProjectGroup], int, int]:
+        """Lists project groups with batch/status filters and search."""
+        base_query = select(ProjectGroup).options(
+            joinedload(ProjectGroup.batch),
+            joinedload(ProjectGroup.project),
+            joinedload(ProjectGroup.members).joinedload(ProjectGroupMember.candidate),
+        )
+
+        if batch_id:
+            base_query = base_query.where(ProjectGroup.batch_id == batch_id)
+        if group_status:
+            base_query = base_query.where(ProjectGroup.group_status == group_status)
+        if project_id:
+            base_query = base_query.where(ProjectGroup.project_id == project_id)
+        if search:
+            base_query = base_query.where(ProjectGroup.group_name.ilike(f"%{search.strip()}%"))
+
+        count_query = select(func.count(func.distinct(ProjectGroup.id))).select_from(base_query.subquery())
+        total = (await db.execute(count_query)).scalar() or 0
+
+        offset = (page - 1) * page_size
+        items_query = base_query.order_by(ProjectGroup.created_at.desc()).offset(offset).limit(page_size)
+        items_res = await db.execute(items_query)
+        items = list(items_res.unique().scalars().all())
+
+        total_pages = max(1, (total + page_size - 1) // page_size)
+        return items, total, total_pages
+
+    @staticmethod
+    async def add_member(
+        db: AsyncSession,
+        group_id: uuid.UUID,
+        payload: GroupMemberAddRequest,
+        actor_id: uuid.UUID,
+        request_ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
+    ) -> ProjectGroup:
+        """
+        Adds a candidate to a project group.
+        Enforces maximum capacity (<= 5) and single active group membership per cohort batch.
+        """
+        group = await ProjectGroupService.get_group(db, group_id)
+
+        if group.group_status in ["LOCKED", "COMPLETED", "DISSOLVED"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot add members to group in '{group.group_status}' status.",
+            )
+
+        active_members = [m for m in group.members if m.status == "ACTIVE"]
+        if len(active_members) >= group.max_size:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Group has reached maximum capacity of {group.max_size} members.",
+            )
+
+        # Verify candidate enrollment in group's batch
+        enr_q = select(Enrollment).where(
+            Enrollment.batch_id == group.batch_id,
+            Enrollment.candidate_id == payload.candidate_id,
+            Enrollment.enrollment_status == "ACTIVE",
+        )
+        enr_res = await db.execute(enr_q)
+        if not enr_res.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Candidate is not actively enrolled in the cohort batch of this group.",
+            )
+
+        # Verify candidate is not already active in another group in this batch
+        other_q = (
+            select(ProjectGroupMember)
+            .join(ProjectGroup, ProjectGroupMember.group_id == ProjectGroup.id)
+            .where(
+                ProjectGroup.batch_id == group.batch_id,
+                ProjectGroupMember.candidate_id == payload.candidate_id,
+                ProjectGroupMember.status == "ACTIVE",
+                ProjectGroup.group_status.in_(["FORMING", "ACTIVE", "LOCKED"]),
+            )
+        )
+        other_res = await db.execute(other_q)
+        if other_res.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Candidate is already an active member of another project group in this batch.",
+            )
+
+        now = utc_now()
+
+        # If role is LEADER, demote existing leader
+        if payload.role == "LEADER":
+            for m in active_members:
+                if m.role == "LEADER":
+                    m.role = "MEMBER"
+
+        # Check existing member record in this group (e.g. previously removed)
+        existing_mem = next((m for m in group.members if m.candidate_id == payload.candidate_id), None)
+        if existing_mem:
+            existing_mem.status = "ACTIVE"
+            existing_mem.role = payload.role
+            existing_mem.joined_at = now
+        else:
+            new_mem = ProjectGroupMember(
+                id=uuid.uuid4(),
+                group_id=group.id,
+                candidate_id=payload.candidate_id,
+                role=payload.role,
+                status="ACTIVE",
+                joined_at=now,
+            )
+            db.add(new_mem)
+
+        group.updated_at = now
+
+        await write_audit_log(
+            db=db,
+            action="project_group:member_added",
+            actor_id=actor_id,
+            resource_type="project_group",
+            resource_id=str(group.id),
+            details={
+                "candidate_id": str(payload.candidate_id),
+                "role": payload.role,
+                "new_member_count": len(active_members) + 1,
+            },
+            request_ip=request_ip,
+            user_agent=user_agent,
+        )
+
+        await db.commit()
+        db.expire(group)
+        return await ProjectGroupService.get_group(db, group_id)
+
+    @staticmethod
+    async def remove_member(
+        db: AsyncSession,
+        group_id: uuid.UUID,
+        candidate_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        override: bool = False,
+        request_ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
+    ) -> ProjectGroup:
+        """
+        Removes a member from a project group.
+        Enforces minimum team size (>= 2) unless override is specified.
+        """
+        group = await ProjectGroupService.get_group(db, group_id)
+        active_members = [m for m in group.members if m.status == "ACTIVE"]
+
+        member = next((m for m in active_members if m.candidate_id == candidate_id), None)
+        if not member:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Active membership for candidate not found in this group.",
+            )
+
+        if not override and len(active_members) <= group.min_size:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Cannot remove member: Group would drop below minimum size constraint of {group.min_size} members.",
+            )
+
+        member.status = "REMOVED"
+        now = utc_now()
+        group.updated_at = now
+
+        # If removed member was LEADER, promote first active member
+        if member.role == "LEADER":
+            remaining = [m for m in active_members if m.candidate_id != candidate_id]
+            if remaining:
+                remaining[0].role = "LEADER"
+
+        await write_audit_log(
+            db=db,
+            action="project_group:member_removed",
+            actor_id=actor_id,
+            resource_type="project_group",
+            resource_id=str(group.id),
+            details={
+                "candidate_id": str(candidate_id),
+                "override": override,
+                "remaining_member_count": len(active_members) - 1,
+            },
+            request_ip=request_ip,
+            user_agent=user_agent,
+        )
+
+        await db.commit()
+        return await ProjectGroupService.get_group(db, group_id)
+
+    @staticmethod
+    async def assign_leader(
+        db: AsyncSession,
+        group_id: uuid.UUID,
+        candidate_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        request_ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
+    ) -> ProjectGroup:
+        """Designates a candidate as the group leader."""
+        group = await ProjectGroupService.get_group(db, group_id)
+        active_members = [m for m in group.members if m.status == "ACTIVE"]
+
+        target_member = next((m for m in active_members if m.candidate_id == candidate_id), None)
+        if not target_member:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Candidate is not an active member of this group.",
+            )
+
+        for m in active_members:
+            m.role = "LEADER" if m.candidate_id == candidate_id else "MEMBER"
+
+        now = utc_now()
+        group.updated_at = now
+
+        await write_audit_log(
+            db=db,
+            action="project_group:leader_assigned",
+            actor_id=actor_id,
+            resource_type="project_group",
+            resource_id=str(group.id),
+            details={"leader_candidate_id": str(candidate_id)},
+            request_ip=request_ip,
+            user_agent=user_agent,
+        )
+
+        await db.commit()
+        return await ProjectGroupService.get_group(db, group_id)
+
+    @staticmethod
+    async def update_group(
+        db: AsyncSession,
+        group_id: uuid.UUID,
+        payload: ProjectGroupUpdateRequest,
+        actor_id: uuid.UUID,
+        request_ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
+    ) -> ProjectGroup:
+        """Updates group name, project assignment, or status transitions."""
+        group = await ProjectGroupService.get_group(db, group_id)
+        now = utc_now()
+
+        if payload.group_name is not None:
+            group.group_name = payload.group_name.strip()
+        if payload.project_id is not None:
+            # Verify project exists
+            prj_q = select(Project).where(Project.id == payload.project_id)
+            prj_res = await db.execute(prj_q)
+            if not prj_res.scalar_one_or_none():
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project specification not found.")
+            group.project_id = payload.project_id
+        if payload.group_status is not None:
+            if payload.group_status in ["ACTIVE", "LOCKED"]:
+                active_count = len([m for m in group.members if m.status == "ACTIVE"])
+                if active_count < group.min_size:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Cannot activate group: Needs at least {group.min_size} active members (currently {active_count}).",
+                    )
+            group.group_status = payload.group_status
+
+        group.updated_at = now
+
+        await write_audit_log(
+            db=db,
+            action="project_group:updated",
+            actor_id=actor_id,
+            resource_type="project_group",
+            resource_id=str(group.id),
+            details={"updated_fields": list(payload.model_dump(exclude_unset=True).keys())},
+            request_ip=request_ip,
+            user_agent=user_agent,
+        )
+
+        await db.commit()
+        return await ProjectGroupService.get_group(db, group_id)
+

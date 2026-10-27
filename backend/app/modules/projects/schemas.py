@@ -155,3 +155,97 @@ class ProjectPaginatedResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+# ==========================================
+# Phase 9: Project Groups & Dynamic Sizing
+# ==========================================
+
+class GroupMemberItem(BaseModel):
+    id: uuid.UUID
+    candidate_id: uuid.UUID
+    candidate_name: str
+    candidate_number: str
+    candidate_email: str
+    role: str
+    status: str
+    joined_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GroupMemberAddRequest(BaseModel):
+    candidate_id: uuid.UUID
+    role: str = Field(default="MEMBER", pattern="^(LEADER|MEMBER)$")
+
+
+class ProjectGroupCreateRequest(BaseModel):
+    batch_id: uuid.UUID
+    group_name: str = Field(..., min_length=3, max_length=100)
+    project_id: Optional[uuid.UUID] = None
+    min_size: int = Field(default=2, ge=1, le=10)
+    target_size: int = Field(default=4, ge=1, le=10)
+    max_size: int = Field(default=5, ge=1, le=10)
+    initial_candidate_ids: List[uuid.UUID] = Field(default_factory=list)
+    leader_candidate_id: Optional[uuid.UUID] = None
+
+    @field_validator("max_size")
+    @classmethod
+    def validate_group_bounds(cls, v: int, info) -> int:
+        min_s = info.data.get("min_size", 2)
+        if v < min_s:
+            raise ValueError("max_size cannot be smaller than min_size.")
+        return v
+
+
+class ProjectGroupUpdateRequest(BaseModel):
+    group_name: Optional[str] = Field(None, min_length=3, max_length=100)
+    project_id: Optional[uuid.UUID] = None
+    group_status: Optional[str] = Field(None, pattern="^(FORMING|ACTIVE|LOCKED|COMPLETED|DISSOLVED)$")
+
+
+class ProjectGroupResponse(BaseModel):
+    id: uuid.UUID
+    batch_id: uuid.UUID
+    batch_code: Optional[str] = None
+    batch_title: Optional[str] = None
+    project_id: Optional[uuid.UUID] = None
+    project_code: Optional[str] = None
+    project_title: Optional[str] = None
+    group_name: str
+    group_status: str
+    min_size: int
+    target_size: int
+    max_size: int
+    member_count: int
+    members: List[GroupMemberItem] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProjectGroupListItem(BaseModel):
+    id: uuid.UUID
+    batch_id: uuid.UUID
+    batch_code: Optional[str] = None
+    project_id: Optional[uuid.UUID] = None
+    project_code: Optional[str] = None
+    group_name: str
+    group_status: str
+    member_count: int
+    min_size: int
+    target_size: int
+    max_size: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProjectGroupPaginatedResponse(BaseModel):
+    items: List[ProjectGroupListItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+

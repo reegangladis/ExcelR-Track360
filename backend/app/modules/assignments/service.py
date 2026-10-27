@@ -109,8 +109,7 @@ class AssignmentService:
         )
 
         await db.commit()
-        await db.refresh(assignment)
-        return assignment
+        return await AssignmentService.get_assignment(db, assignment.id)
 
     @staticmethod
     async def get_assignment(db: AsyncSession, assignment_id: uuid.UUID) -> Assignment:
@@ -169,8 +168,7 @@ class AssignmentService:
         )
 
         await db.commit()
-        await db.refresh(assignment)
-        return assignment
+        return await AssignmentService.get_assignment(db, assignment.id)
 
     @staticmethod
     async def list_assignments(

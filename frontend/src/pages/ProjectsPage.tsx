@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ProjectListItem, ProjectItem, TrackItem } from '@/types';
+import { ProjectGroupsTab } from '@/components/ProjectGroupsTab';
 import {
   FolderGit2,
   Plus,
@@ -27,6 +28,9 @@ export const ProjectsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [page, setPage] = useState<number>(1);
   const pageSize = 12;
+
+  // Main Tab State
+  const [activeMainTab, setActiveMainTab] = useState<'catalog' | 'groups'>('catalog');
 
   // Modals State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -210,16 +214,50 @@ export const ProjectsPage: React.FC = () => {
           </p>
         </div>
 
+        {activeMainTab === 'catalog' && (
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            New Project Specification
+          </button>
+        )}
+      </div>
+
+      {/* Main Tab Switcher */}
+      <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200">
         <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm"
+          id="tab-project-catalog"
+          onClick={() => setActiveMainTab('catalog')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+            activeMainTab === 'catalog'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
         >
-          <Plus className="w-4 h-4" />
-          New Project Specification
+          <FolderGit2 className="w-4 h-4" />
+          Project Specifications Catalog
+        </button>
+        <button
+          id="tab-project-groups"
+          onClick={() => setActiveMainTab('groups')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+            activeMainTab === 'groups'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          Project Groups & Team Sizing
         </button>
       </div>
 
-      {/* Tier Filter Tabs */}
+      {activeMainTab === 'groups' ? (
+        <ProjectGroupsTab />
+      ) : (
+        <>
+          {/* Tier Filter Tabs */}
       <div className="border-b border-slate-200">
         <nav className="flex space-x-6">
           {[
@@ -464,6 +502,8 @@ export const ProjectsPage: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+        </>
       )}
 
       {/* CREATE PROJECT SPECIFICATION MODAL */}

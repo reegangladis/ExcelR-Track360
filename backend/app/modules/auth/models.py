@@ -86,7 +86,6 @@ class Permission(Base):
         "Role",
         secondary="role_permissions",
         back_populates="permissions",
-        lazy="selectin",
     )
 
 
@@ -121,7 +120,6 @@ class Role(Base):
         primaryjoin="Role.id == UserRole.role_id",
         secondaryjoin="UserRole.user_id == User.id",
         back_populates="roles",
-        lazy="selectin",
     )
 
 
@@ -172,7 +170,6 @@ class User(Base):
         "UserSession",
         back_populates="user",
         cascade="all, delete-orphan",
-        lazy="selectin",
     )
 
 

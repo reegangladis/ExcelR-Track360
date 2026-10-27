@@ -100,3 +100,66 @@ class ProjectMilestone(Base):
     __table_args__ = (
         UniqueConstraint("project_id", "sequence_order", name="uq_project_milestone_sequence"),
     )
+
+
+class ProjectGroup(Base):
+    """
+    Project Collaboration Group formed within a cohort Batch.
+    Strictly enforces dynamic capacity constraints: min 2, target 4, max 5 members.
+    """
+    __tablename__ = "project_groups"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    batch_id = Column(UUID(as_uuid=True), ForeignKey("batches.id", ondelete="RESTRICT"), nullable=False, index=True)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
+    group_name = Column(String(100), nullable=False)
+    
+    # Status: FORMING | ACTIVE | LOCKED | COMPLETED | DISSOLVED
+    group_status = Column(String(32), nullable=False, default="FORMING", index=True)
+    
+    # Dynamic capacity constraints (Business Rule: min 2, target 4, max 5)
+    min_size = Column(Integer, nullable=False, default=2)
+    target_size = Column(Integer, nullable=False, default=4)
+    max_size = Column(Integer, nullable=False, default=5)
+    
+    created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    # Relationships
+    batch = relationship("Batch")
+    project = relationship("Project")
+    members = relationship(
+        "ProjectGroupMember",
+        back_populates="group",
+        cascade="all, delete-orphan",
+    )
+
+
+class ProjectGroupMember(Base):
+    """
+    Candidate membership record within a ProjectGroup.
+    Enforces role (LEADER | MEMBER) and status (ACTIVE | REMOVED | TRANSFERRED).
+    """
+    __tablename__ = "project_group_members"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    group_id = Column(UUID(as_uuid=True), ForeignKey("project_groups.id", ondelete="CASCADE"), nullable=False, index=True)
+    candidate_id = Column(UUID(as_uuid=True), ForeignKey("candidates.id", ondelete="RESTRICT"), nullable=False, index=True)
+    
+    # Role within group: LEADER | MEMBER
+    role = Column(String(32), nullable=False, default="MEMBER")
+    
+    # Membership status: ACTIVE | REMOVED | TRANSFERRED
+    status = Column(String(32), nullable=False, default="ACTIVE")
+    
+    joined_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    # Relationships
+    group = relationship("ProjectGroup", back_populates="members")
+    candidate = relationship("Candidate")
+
+    __table_args__ = (
+        UniqueConstraint("group_id", "candidate_id", name="uq_project_group_candidate"),
+    )
+

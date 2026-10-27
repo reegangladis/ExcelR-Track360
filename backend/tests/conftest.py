@@ -8,8 +8,6 @@ import pytest
 from typing import AsyncGenerator
 from httpx import ASGITransport, AsyncClient
 
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from app.core.config import Settings, get_settings
 from app.main import create_application
@@ -38,11 +36,5 @@ async def async_client(test_settings: Settings) -> AsyncGenerator[AsyncClient, N
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         yield client
-
-
-@pytest.fixture(autouse=True)
-async def clean_db_connections():
-    """Disposes database connection pool cleanly between async tests to avoid closed loop errors."""
     from app.core.database import close_database_connections
-    yield
     await close_database_connections()

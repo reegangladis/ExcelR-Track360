@@ -342,4 +342,44 @@ export interface ProjectPaginated {
   total_pages: number;
 }
 
+export interface ProjectGroupMemberItem {
+  id: string;
+  group_id: string;
+  candidate_id: string;
+  candidate_name?: string | null;
+  candidate_number?: string | null;
+  candidate_email?: string | null;
+  role: 'LEADER' | 'MEMBER';
+  member_status: 'ACTIVE' | 'REMOVED' | 'TRANSFERRED';
+  joined_at: string;
+}
+
+export interface ProjectGroupListItem {
+  id: string;
+  batch_id: string;
+  batch_code?: string | null;
+  project_id?: string | null;
+  project_title?: string | null;
+  group_name: string;
+  min_size: number;
+  target_size: number;
+  max_size: number;
+  active_members_count: number;
+  status: 'FORMING' | 'ACTIVE' | 'LOCKED' | 'COMPLETED' | 'DISSOLVED';
+  created_at: string;
+}
+
+export interface ProjectGroupItem extends ProjectGroupListItem {
+  members: ProjectGroupMemberItem[];
+  updated_at: string;
+}
+
+export interface ProjectGroupPaginated {
+  items: ProjectGroupListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 

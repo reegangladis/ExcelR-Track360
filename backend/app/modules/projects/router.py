@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.modules.auth.dependencies import get_current_user, require_permission
 from app.modules.auth.models import User
-from app.modules.projects.models import Project, ProjectMilestone
+from app.modules.projects.models import Project, ProjectMilestone, ProjectGroup, ProjectGroupMember
 from app.modules.projects.schemas import (
     MilestoneCreateItem,
     MilestoneResponse,
@@ -22,8 +22,15 @@ from app.modules.projects.schemas import (
     ProjectPaginatedResponse,
     ProjectResponse,
     ProjectUpdateRequest,
+    GroupMemberAddRequest,
+    GroupMemberItem,
+    ProjectGroupCreateRequest,
+    ProjectGroupListItem,
+    ProjectGroupPaginatedResponse,
+    ProjectGroupResponse,
+    ProjectGroupUpdateRequest,
 )
-from app.modules.projects.service import ProjectService
+from app.modules.projects.service import ProjectService, ProjectGroupService
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -81,6 +88,59 @@ def _to_project_list_item(p: Project) -> ProjectListItem:
         milestone_count=len(p.milestones) if p.milestones else 0,
         is_active=p.is_active,
         created_at=p.created_at,
+    )
+
+
+def _to_group_member_item(m: ProjectGroupMember) -> GroupMemberItem:
+    return GroupMemberItem(
+        id=m.id,
+        candidate_id=m.candidate_id,
+        candidate_name=f"{m.candidate.first_name} {m.candidate.last_name}" if m.candidate else "Unknown",
+        candidate_number=m.candidate.candidate_number if m.candidate else "",
+        candidate_email=m.candidate.email if m.candidate else "",
+        role=m.role,
+        status=m.status,
+        joined_at=m.joined_at,
+    )
+
+
+def _to_group_response(g: ProjectGroup) -> ProjectGroupResponse:
+    active_m = [m for m in g.members if m.status == "ACTIVE"]
+    return ProjectGroupResponse(
+        id=g.id,
+        batch_id=g.batch_id,
+        batch_code=g.batch.batch_code if g.batch else None,
+        batch_title=g.batch.title if g.batch else None,
+        project_id=g.project_id,
+        project_code=g.project.code if g.project else None,
+        project_title=g.project.title if g.project else None,
+        group_name=g.group_name,
+        group_status=g.group_status,
+        min_size=g.min_size,
+        target_size=g.target_size,
+        max_size=g.max_size,
+        member_count=len(active_m),
+        members=[_to_group_member_item(m) for m in active_m],
+        created_at=g.created_at,
+        updated_at=g.updated_at,
+    )
+
+
+def _to_group_list_item(g: ProjectGroup) -> ProjectGroupListItem:
+    active_m = [m for m in g.members if m.status == "ACTIVE"]
+    return ProjectGroupListItem(
+        id=g.id,
+        batch_id=g.batch_id,
+        batch_code=g.batch.batch_code if g.batch else None,
+        project_id=g.project_id,
+        project_code=g.project.code if g.project else None,
+        group_name=g.group_name,
+        group_status=g.group_status,
+        member_count=len(active_m),
+        min_size=g.min_size,
+        target_size=g.target_size,
+        max_size=g.max_size,
+        created_at=g.created_at,
     )
 
 
@@ -143,6 +203,179 @@ async def list_projects(
         page_size=page_size,
         total_pages=total_pages,
     )
+
+
+# ==========================================
+# Phase 9: Project Groups & Dynamic Sizing
+# ==========================================
+
+@router.post(
+    "/groups",
+    response_model=ProjectGroupResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("project:group_manage"))],
+)
+async def create_project_group(
+    payload: ProjectGroupCreateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Forms a new student collaboration project group within a cohort batch."""
+    group = await ProjectGroupService.create_group(
+        db=db,
+        payload=payload,
+        actor_id=current_user.id,
+        request_ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    return _to_group_response(group)
+
+
+@router.get(
+    "/groups",
+    response_model=ProjectGroupPaginatedResponse,
+    dependencies=[Depends(require_permission("project:group_manage"))],
+)
+async def list_project_groups(
+    batch_id: Optional[uuid.UUID] = Query(None, description="Filter by cohort batch"),
+    group_status: Optional[str] = Query(None, description="Filter by group status"),
+    project_id: Optional[uuid.UUID] = Query(None, description="Filter by project specification"),
+    search: Optional[str] = Query(None, description="Search by group name"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lists project groups with filters and pagination."""
+    items, total, total_pages = await ProjectGroupService.list_groups(
+        db=db,
+        batch_id=batch_id,
+        group_status=group_status,
+        project_id=project_id,
+        search=search,
+        page=page,
+        page_size=page_size,
+    )
+    return ProjectGroupPaginatedResponse(
+        items=[_to_group_list_item(g) for g in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.get(
+    "/groups/{group_id}",
+    response_model=ProjectGroupResponse,
+    dependencies=[Depends(require_permission("project:group_manage"))],
+)
+async def get_project_group(
+    group_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetches complete project group details, active members, and batch assignment."""
+    group = await ProjectGroupService.get_group(db, group_id)
+    return _to_group_response(group)
+
+
+@router.patch(
+    "/groups/{group_id}",
+    response_model=ProjectGroupResponse,
+    dependencies=[Depends(require_permission("project:group_manage"))],
+)
+async def update_project_group(
+    group_id: uuid.UUID,
+    payload: ProjectGroupUpdateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Updates group parameters or status transitions."""
+    group = await ProjectGroupService.update_group(
+        db=db,
+        group_id=group_id,
+        payload=payload,
+        actor_id=current_user.id,
+        request_ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    return _to_group_response(group)
+
+
+@router.post(
+    "/groups/{group_id}/members",
+    response_model=ProjectGroupResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("project:group_manage"))],
+)
+async def add_group_member(
+    group_id: uuid.UUID,
+    payload: GroupMemberAddRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Adds an eligible enrolled candidate to a collaboration group."""
+    group = await ProjectGroupService.add_member(
+        db=db,
+        group_id=group_id,
+        payload=payload,
+        actor_id=current_user.id,
+        request_ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    return _to_group_response(group)
+
+
+@router.delete(
+    "/groups/{group_id}/members/{candidate_id}",
+    response_model=ProjectGroupResponse,
+    dependencies=[Depends(require_permission("project:group_manage"))],
+)
+async def remove_group_member(
+    group_id: uuid.UUID,
+    candidate_id: uuid.UUID,
+    request: Request,
+    override: bool = Query(False, description="Administrative override for minimum team size"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Removes a candidate from a project group while enforcing minimum capacity."""
+    group = await ProjectGroupService.remove_member(
+        db=db,
+        group_id=group_id,
+        candidate_id=candidate_id,
+        override=override,
+        actor_id=current_user.id,
+        request_ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    return _to_group_response(group)
+
+
+@router.patch(
+    "/groups/{group_id}/leader/{candidate_id}",
+    response_model=ProjectGroupResponse,
+    dependencies=[Depends(require_permission("project:group_manage"))],
+)
+async def assign_group_leader(
+    group_id: uuid.UUID,
+    candidate_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Designates an active candidate as the team leader."""
+    group = await ProjectGroupService.assign_leader(
+        db=db,
+        group_id=group_id,
+        candidate_id=candidate_id,
+        actor_id=current_user.id,
+        request_ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    return _to_group_response(group)
 
 
 @router.get(
