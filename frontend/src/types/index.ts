@@ -276,3 +276,70 @@ export interface AssignmentSubmissionDetail {
   attempts: SubmissionAttemptItem[];
 }
 
+export interface DeliverableSpecItem {
+  key: string;
+  title: string;
+  deliverable_type: 'GIT_REPO' | 'FILE_UPLOAD' | 'DEMO_URL' | 'DOCUMENTATION';
+  is_required: boolean;
+  description?: string;
+}
+
+export interface ProjectMilestoneItem {
+  id: string;
+  project_id: string;
+  sequence_order: number;
+  title: string;
+  description?: string | null;
+  weight_percentage: number;
+  max_score: number;
+  is_mandatory: boolean;
+  required_deliverables: Array<Record<string, any>>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectListItem {
+  id: string;
+  track_id: string;
+  track_title?: string | null;
+  code: string;
+  title: string;
+  tier: 'TIER_1_FOUNDATIONAL' | 'TIER_2_INTERMEDIATE' | 'TIER_3_CAPSTONE';
+  complexity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  min_team_size: number;
+  max_team_size: number;
+  passing_score: number;
+  milestone_count: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ProjectItem {
+  id: string;
+  track_id: string;
+  track_title?: string | null;
+  code: string;
+  title: string;
+  description?: string | null;
+  tier: 'TIER_1_FOUNDATIONAL' | 'TIER_2_INTERMEDIATE' | 'TIER_3_CAPSTONE';
+  complexity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  min_team_size: number;
+  max_team_size: number;
+  passing_score: number;
+  deliverable_specs: DeliverableSpecItem[];
+  rubric_template: RubricCriterionItem[];
+  is_active: boolean;
+  milestones: ProjectMilestoneItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectPaginated {
+  items: ProjectListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+

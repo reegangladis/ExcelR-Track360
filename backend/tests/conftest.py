@@ -2,9 +2,14 @@
 ExcelR Track360 - Pytest Fixtures & Test Setup
 Configures AsyncClient, test settings, and database mocking fixtures.
 """
+import sys
+import asyncio
 import pytest
 from typing import AsyncGenerator
 from httpx import ASGITransport, AsyncClient
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from app.core.config import Settings, get_settings
 from app.main import create_application

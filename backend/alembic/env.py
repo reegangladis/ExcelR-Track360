@@ -13,6 +13,7 @@ import app.modules.auth.models  # noqa: F401
 import app.modules.audit.models  # noqa: F401
 import app.modules.candidates.models  # noqa: F401
 import app.modules.assignments.models  # noqa: F401
+import app.modules.projects.models  # noqa: F401
 
 config = context.config
 
