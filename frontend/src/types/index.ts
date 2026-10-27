@@ -585,5 +585,138 @@ export interface CandidateInternshipEligibilityResponse {
   existing_internship_id?: string | null;
 }
 
+// ============================================================================
+// Phase 12: Certificate Management & Verification Types
+// ============================================================================
+
+export type CertificateStatus = 'PENDING_APPROVAL' | 'REVIEWED' | 'APPROVED' | 'ISSUED' | 'REJECTED' | 'REVOKED';
+
+export interface CertificateApprovalItem {
+  id: string;
+  certificate_id: string;
+  approver_id: string;
+  approver_name?: string | null;
+  approver_email?: string | null;
+  stage: string;
+  decision: string;
+  decision_notes?: string | null;
+  decided_at_utc: string;
+}
+
+export interface CertificateRevocationItem {
+  id: string;
+  certificate_id: string;
+  revoked_by_id: string;
+  revoker_name?: string | null;
+  revoker_email?: string | null;
+  reason_category: string;
+  detailed_reason: string;
+  revoked_at_utc: string;
+}
+
+export interface CertificateItem {
+  id: string;
+  candidate_id: string;
+  candidate_display_name: string;
+  track_id: string;
+  course_display_title: string;
+  internship_record_id?: string | null;
+  serial_number: string;
+  certificate_type: string;
+  milestone_level?: number | null;
+  accredited_duration_months: number;
+  issue_date: string;
+  verification_hash: string;
+  verification_qr_url: string;
+  status: CertificateStatus;
+  pdf_file_asset_id?: string | null;
+  requested_by_id: string;
+  requested_at: string;
+  stage1_reviewer_id?: string | null;
+  stage1_reviewed_at?: string | null;
+  stage1_notes?: string | null;
+  stage2_approver_id?: string | null;
+  stage2_approved_at?: string | null;
+  stage2_notes?: string | null;
+  issued_at_utc?: string | null;
+  revoked_by_id?: string | null;
+  revoked_at?: string | null;
+  revocation_category?: string | null;
+  revocation_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+  approvals: CertificateApprovalItem[];
+  revocations: CertificateRevocationItem[];
+}
+
+export interface CertificateEligibilityDiagnostic {
+  candidate_id: string;
+  candidate_name: string;
+  track_id: string;
+  track_title: string;
+  total_mandatory_assignments: number;
+  passed_mandatory_assignments: number;
+  assignments_completed: boolean;
+  total_required_projects: number;
+  approved_project_milestones: number;
+  projects_completed: boolean;
+  has_internship: boolean;
+  internship_status?: string | null;
+  internship_completed: boolean;
+  accredited_duration_months: number;
+  is_eligible: boolean;
+  ineligibility_reasons: string[];
+  has_active_certificate: boolean;
+  existing_certificate_id?: string | null;
+  existing_certificate_number?: string | null;
+}
+
+export interface CertificateIssueRequest {
+  candidate_id: string;
+  track_id: string;
+  internship_record_id?: string | null;
+  certificate_type?: string;
+  milestone_level?: number | null;
+  issue_date?: string;
+  notes?: string;
+}
+
+export interface CertificateReviewRequest {
+  decision: 'APPROVED' | 'REJECTED';
+  decision_notes?: string;
+}
+
+export interface CertificateApprovalRequest {
+  decision: 'APPROVED' | 'REJECTED';
+  decision_notes?: string;
+}
+
+export interface CertificateRevokeRequest {
+  reason_category: 'ACADEMIC_MALPRACTICE' | 'DATA_ENTRY_ERROR' | 'DISCIPLINARY_ACTION' | 'ADMINISTRATIVE_OVERRIDE';
+  detailed_reason: string;
+}
+
+export interface CertificatePublicVerifyResponse {
+  is_valid: boolean;
+  status: string;
+  serial_number: string;
+  candidate_name: string;
+  track_title: string;
+  accredited_duration_months: number;
+  issue_date: string;
+  verification_hash: string;
+  issued_at_utc?: string | null;
+  revoked_at?: string | null;
+  revocation_category?: string | null;
+  verification_qr_url: string;
+}
+
+export interface CertificateListResponse {
+  items: CertificateItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 
 

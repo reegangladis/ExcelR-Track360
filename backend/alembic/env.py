@@ -15,6 +15,7 @@ import app.modules.candidates.models  # noqa: F401
 import app.modules.assignments.models  # noqa: F401
 import app.modules.projects.models  # noqa: F401
 import app.modules.internships.models  # noqa: F401
+import app.modules.certificates.models  # noqa: F401
 
 config = context.config
 
