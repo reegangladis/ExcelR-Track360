@@ -3,6 +3,7 @@ import { Layout } from './Layout';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { CandidatesPage } from '@/pages/CandidatesPage';
+import { AssignmentsPage } from '@/pages/AssignmentsPage';
 import { ModulesPlaceholderPage } from '@/pages/ModulesPlaceholderPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -30,7 +31,11 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'assignments',
-        element: <ModulesPlaceholderPage />,
+        element: (
+          <ProtectedRoute>
+            <AssignmentsPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'projects',

@@ -110,6 +110,15 @@ async def create_course_track(
     return track
 
 
+@router.get("/courses/tracks", response_model=List[CourseTrackResponse], summary="List Course Tracks")
+async def list_course_tracks(course_id: Optional[uuid.UUID] = None, db: AsyncSession = Depends(get_db)):
+    """Lists course tracks with optional course_id filter."""
+    stmt = select(CourseTrack).where(CourseTrack.is_active == True)
+    if course_id:
+        stmt = stmt.where(CourseTrack.course_id == course_id)
+    return list((await db.execute(stmt)).scalars().all())
+
+
 @router.get("/batches", response_model=List[BatchResponse], summary="List Cohort Batches")
 async def list_batches(db: AsyncSession = Depends(get_db)):
     """Lists cohort batches."""

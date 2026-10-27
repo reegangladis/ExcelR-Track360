@@ -87,6 +87,16 @@ export interface CandidatePaginated {
   total_pages: number;
 }
 
+export interface TrackItem {
+  id: string;
+  course_id: string;
+  code: string;
+  title: string;
+  total_mandatory_assignments: number;
+  total_required_projects: number;
+  is_active: boolean;
+}
+
 export interface BatchItem {
   id: string;
   track_id: string;
@@ -115,4 +125,61 @@ export interface ImportPreviewResult {
   valid_rows_count: number;
   error_rows_count: number;
   rows: ImportRowItem[];
+}
+
+export interface RubricCriterionItem {
+  key: string;
+  title: string;
+  max_points: number;
+  description?: string;
+}
+
+export interface AssignmentItem {
+  id: string;
+  track_id: string;
+  code: string;
+  title: string;
+  instructions_markdown: string;
+  sequence_order: number;
+  is_mandatory: boolean;
+  max_score: number;
+  passing_score: number;
+  rubric_template: RubricCriterionItem[];
+  allowed_file_types: string[];
+  max_file_size_mb: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  track_name?: string | null;
+}
+
+export interface AssignmentPaginated {
+  items: AssignmentItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface AllocationItem {
+  id: string;
+  assignment_id: string;
+  assignment_code: string;
+  assignment_title: string;
+  batch_id?: string | null;
+  batch_code?: string | null;
+  candidate_id?: string | null;
+  candidate_name?: string | null;
+  due_date_utc: string;
+  grace_period_end_utc?: string | null;
+  allocation_status: string;
+  created_at: string;
+}
+
+export interface AllocationPaginated {
+  items: AllocationItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
