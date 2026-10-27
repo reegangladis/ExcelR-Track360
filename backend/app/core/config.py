@@ -25,6 +25,10 @@ class Settings(BaseSettings):
         default="dev-insecure-secret-key-change-in-production-min-32-chars",
         description="Session encryption and token signing key"
     )
+    UPLOAD_DIR: str = Field(
+        default="data/uploads",
+        description="Base directory for stored deliverable file assets"
+    )
     
     # Database Settings
     DATABASE_HOST: str = Field(default="localhost", description="PostgreSQL host")

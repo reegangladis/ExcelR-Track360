@@ -1,29 +1,34 @@
-"""
-ExcelR Track360 - Assignment Management Service
-Implements business rules for assignment templates, rubrics, and cohort/candidate allocations.
-"""
 from datetime import datetime, timezone
+import hashlib
 import math
+import os
+from pathlib import Path
 from typing import Optional, Tuple, List
 import uuid
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import func, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import get_settings
 from app.core.security import utc_now
 from app.modules.audit.service import write_audit_log
-from app.modules.candidates.models import CourseTrack, Batch, Candidate
+from app.modules.candidates.models import CourseTrack, Batch, Candidate, Enrollment
 from app.modules.assignments.models import (
     Assignment,
     AssignmentAllocation,
     AssignmentSubmission,
+    FileAsset,
+    SubmissionAttempt,
+    SubmissionReview,
+    ReviewRubricScore,
 )
 from app.modules.assignments.schemas import (
     AssignmentCreateRequest,
     AssignmentUpdateRequest,
     AllocationCreateRequest,
+    SubmissionReviewCreateRequest,
 )
 
 
@@ -366,3 +371,453 @@ class AssignmentService:
         res = await db.execute(query)
         allocations = list(res.scalars().all())
         return allocations, total, total_pages
+
+    @staticmethod
+    async def submit_assignment(
+        db: AsyncSession,
+        allocation_id: uuid.UUID,
+        candidate_id: uuid.UUID,
+        file: Optional[UploadFile] = None,
+        repository_url: Optional[str] = None,
+        student_notes: Optional[str] = None,
+        actor_id: Optional[uuid.UUID] = None,
+        request_ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
+    ) -> SubmissionAttempt:
+        now = utc_now()
+
+        # 1. Fetch Allocation with Assignment
+        alloc_query = (
+            select(AssignmentAllocation)
+            .options(
+                selectinload(AssignmentAllocation.assignment),
+                selectinload(AssignmentAllocation.batch),
+            )
+            .where(AssignmentAllocation.id == allocation_id)
+        )
+        alloc_res = await db.execute(alloc_query)
+        allocation = alloc_res.scalar_one_or_none()
+        if not allocation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Assignment allocation not found.",
+            )
+
+        # 2. Authorization & Enrollment verification
+        if allocation.candidate_id and allocation.candidate_id != candidate_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: This allocation is designated for another candidate.",
+            )
+
+        if allocation.batch_id:
+            enroll_q = select(Enrollment).where(
+                Enrollment.batch_id == allocation.batch_id,
+                Enrollment.candidate_id == candidate_id,
+                Enrollment.enrollment_status.in_(["ACTIVE", "ENROLLED"]),
+            )
+            enroll_res = await db.execute(enroll_q)
+            if not enroll_res.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Forbidden: Candidate is not actively enrolled in the allocated cohort batch.",
+                )
+
+        # 3. Grace period check
+        if allocation.grace_period_end_utc and now > allocation.grace_period_end_utc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Submission rejected: Grace period has expired. Please contact your coordinator for an extension.",
+            )
+
+        # 4. Lateness calculation
+        is_late = now > allocation.due_date_utc
+        lateness_minutes = max(0, int((now - allocation.due_date_utc).total_seconds() / 60)) if is_late else 0
+
+        # 5. File handling & Validation
+        file_asset: Optional[FileAsset] = None
+        if file:
+            filename = file.filename or "submission_file"
+            ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+            allowed = allocation.assignment.allowed_file_types or ["pdf", "zip", "ipynb"]
+            if ext not in allowed:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File extension '.{ext}' is not permitted. Allowed extensions: {', '.join(allowed)}.",
+                )
+
+            content = await file.read()
+            size_bytes = len(content)
+            max_bytes = allocation.assignment.max_file_size_mb * 1024 * 1024
+            if size_bytes > max_bytes:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File size ({size_bytes / (1024*1024):.2f}MB) exceeds limit of {allocation.assignment.max_file_size_mb}MB.",
+                )
+
+            checksum = hashlib.sha256(content).hexdigest()
+            settings = get_settings()
+            upload_dir = Path(settings.UPLOAD_DIR)
+            upload_dir.mkdir(parents=True, exist_ok=True)
+
+            storage_key = f"{allocation.id}/{uuid.uuid4().hex[:12]}_{filename}"
+            file_path = upload_dir / storage_key
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(file_path, "wb") as f:
+                f.write(content)
+
+            file_asset = FileAsset(
+                id=uuid.uuid4(),
+                storage_backend="local",
+                storage_key=storage_key,
+                original_filename=filename,
+                file_extension=ext,
+                file_size_bytes=size_bytes,
+                mime_type=file.content_type or "application/octet-stream",
+                checksum_sha256=checksum,
+                uploaded_by=actor_id or candidate_id,
+                created_at=now,
+            )
+            db.add(file_asset)
+            await db.flush()
+        elif not repository_url:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Must provide either a deliverable file or a repository URL.",
+            )
+
+        # 6. Find or Create AssignmentSubmission
+        sub_query = select(AssignmentSubmission).where(
+            AssignmentSubmission.allocation_id == allocation_id,
+            AssignmentSubmission.candidate_id == candidate_id,
+        )
+        sub_res = await db.execute(sub_query)
+        submission = sub_res.scalar_one_or_none()
+
+        new_status = "LATE_SUBMITTED" if is_late else "SUBMITTED"
+
+        if not submission:
+            submission = AssignmentSubmission(
+                id=uuid.uuid4(),
+                allocation_id=allocation_id,
+                candidate_id=candidate_id,
+                current_submission_status=new_status,
+                current_completion_status="INCOMPLETE",
+                total_attempts=1,
+                first_submitted_at_utc=now,
+                latest_submitted_at_utc=now,
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(submission)
+            await db.flush()
+            attempt_number = 1
+        else:
+            if submission.current_completion_status == "PASSED_COMPLETED":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Assignment has already been approved and passed. Resubmission is not permitted.",
+                )
+            submission.total_attempts += 1
+            submission.current_submission_status = new_status
+            submission.latest_submitted_at_utc = now
+            submission.updated_at = now
+            attempt_number = submission.total_attempts
+
+        # 7. Create SubmissionAttempt record
+        attempt = SubmissionAttempt(
+            id=uuid.uuid4(),
+            submission_id=submission.id,
+            attempt_number=attempt_number,
+            file_asset_id=file_asset.id if file_asset else None,
+            repository_url=repository_url,
+            student_notes=student_notes,
+            submitted_at_utc=now,
+            is_late=is_late,
+            lateness_minutes=lateness_minutes,
+            created_at=now,
+        )
+        db.add(attempt)
+        await db.flush()
+
+        # 8. Audit Log
+        await write_audit_log(
+            db=db,
+            action="assignment_submission:created",
+            actor_id=actor_id or candidate_id,
+            resource_type="assignment_submission",
+            resource_id=str(submission.id),
+            details={
+                "attempt_number": attempt_number,
+                "is_late": is_late,
+                "lateness_minutes": lateness_minutes,
+                "file_asset_id": str(file_asset.id) if file_asset else None,
+                "repository_url": repository_url,
+            },
+            request_ip=request_ip,
+            user_agent=user_agent,
+        )
+
+        await db.commit()
+
+        # Re-fetch attempt with file asset eager loaded
+        att_query = (
+            select(SubmissionAttempt)
+            .options(selectinload(SubmissionAttempt.file_asset))
+            .where(SubmissionAttempt.id == attempt.id)
+        )
+        att_res = await db.execute(att_query)
+        return att_res.scalar_one()
+
+    @staticmethod
+    async def review_submission(
+        db: AsyncSession,
+        submission_id: uuid.UUID,
+        payload: SubmissionReviewCreateRequest,
+        reviewer_id: uuid.UUID,
+        request_ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
+    ) -> SubmissionReview:
+        now = utc_now()
+
+        # 1. Fetch submission with attempts, allocation, assignment, and candidate
+        sub_query = (
+            select(AssignmentSubmission)
+            .options(
+                selectinload(AssignmentSubmission.attempts),
+                selectinload(AssignmentSubmission.allocation).selectinload(AssignmentAllocation.assignment),
+                selectinload(AssignmentSubmission.candidate),
+            )
+            .where(AssignmentSubmission.id == submission_id)
+        )
+        sub_res = await db.execute(sub_query)
+        submission = sub_res.scalar_one_or_none()
+        if not submission:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Assignment submission record not found.",
+            )
+
+        if not submission.attempts:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot review a submission with no submitted attempts.",
+            )
+
+        # Get latest attempt
+        latest_attempt = sorted(submission.attempts, key=lambda a: a.attempt_number)[-1]
+
+        # 2. Rubric calculation and Passing Threshold check (BR-ASG-04)
+        total_score = sum(r.awarded_points for r in payload.rubric_scores)
+        assignment = submission.allocation.assignment
+
+        if payload.review_outcome == "APPROVED":
+            if total_score < float(assignment.passing_score):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Cannot approve submission: Total score ({total_score:.1f}) is below the required passing threshold ({assignment.passing_score:.1f}).",
+                )
+
+        # 3. Create SubmissionReview
+        review = SubmissionReview(
+            id=uuid.uuid4(),
+            attempt_id=latest_attempt.id,
+            reviewer_id=reviewer_id,
+            review_outcome=payload.review_outcome,
+            total_score=total_score,
+            qualitative_feedback=payload.qualitative_feedback.strip(),
+            internal_evaluator_notes=payload.internal_evaluator_notes.strip() if payload.internal_evaluator_notes else None,
+            review_completed_at_utc=now,
+            created_at=now,
+        )
+        db.add(review)
+        await db.flush()
+
+        # 4. Insert Rubric Scores
+        for item in payload.rubric_scores:
+            score_entry = ReviewRubricScore(
+                id=uuid.uuid4(),
+                review_id=review.id,
+                criterion_key=item.criterion_key,
+                criterion_title=item.criterion_title,
+                max_points=item.max_points,
+                awarded_points=item.awarded_points,
+                criterion_comments=item.criterion_comments,
+            )
+            db.add(score_entry)
+
+        # 5. Update AssignmentSubmission states (BR-ASG-01)
+        submission.latest_score = total_score
+        submission.updated_at = now
+
+        if payload.review_outcome == "APPROVED":
+            submission.current_submission_status = "APPROVED"
+            submission.current_completion_status = "PASSED_COMPLETED"
+        elif payload.review_outcome == "CORRECTIONS_REQUESTED":
+            submission.current_submission_status = "CORRECTIONS_REQUESTED"
+        elif payload.review_outcome == "REJECTED":
+            submission.current_submission_status = "REJECTED"
+            submission.current_completion_status = "FAILED"
+
+        await db.flush()
+
+        # 6. Check Prerequisite Gating for Project 1 (BR-PRJ-01: 100% Mandatory Assignment Rule)
+        if submission.current_completion_status == "PASSED_COMPLETED":
+            candidate = submission.candidate
+            # Fetch total mandatory assignments for candidate's track
+            track_id = assignment.track_id
+            m_count_q = select(func.count(Assignment.id)).where(
+                Assignment.track_id == track_id,
+                Assignment.is_mandatory == True,
+                Assignment.is_active == True,
+            )
+            m_total = (await db.execute(m_count_q)).scalar() or 0
+
+            # Count how many mandatory assignments candidate has passed
+            passed_q = (
+                select(func.count(AssignmentSubmission.id))
+                .join(AssignmentAllocation, AssignmentSubmission.allocation_id == AssignmentAllocation.id)
+                .join(Assignment, AssignmentAllocation.assignment_id == Assignment.id)
+                .where(
+                    AssignmentSubmission.candidate_id == candidate.id,
+                    AssignmentSubmission.current_completion_status == "PASSED_COMPLETED",
+                    Assignment.track_id == track_id,
+                    Assignment.is_mandatory == True,
+                )
+            )
+            passed_count = (await db.execute(passed_q)).scalar() or 0
+
+            if m_total > 0 and passed_count >= m_total:
+                candidate.project_eligible = True
+                await write_audit_log(
+                    db=db,
+                    action="candidate:project_eligible",
+                    actor_id=reviewer_id,
+                    resource_type="candidate",
+                    resource_id=str(candidate.id),
+                    details={
+                        "track_id": str(track_id),
+                        "passed_mandatory_assignments": passed_count,
+                        "total_mandatory_assignments": m_total,
+                        "reason": "100% mandatory assignment curriculum completed successfully",
+                    },
+                    request_ip=request_ip,
+                    user_agent=user_agent,
+                )
+
+        # 7. Audit Log
+        await write_audit_log(
+            db=db,
+            action="assignment_review:completed",
+            actor_id=reviewer_id,
+            resource_type="assignment_submission",
+            resource_id=str(submission.id),
+            details={
+                "attempt_id": str(latest_attempt.id),
+                "review_outcome": payload.review_outcome,
+                "total_score": float(total_score),
+                "qualitative_feedback": payload.qualitative_feedback,
+            },
+            request_ip=request_ip,
+            user_agent=user_agent,
+        )
+
+        await db.commit()
+
+        # Re-fetch review with rubric scores eager loaded
+        rev_q = (
+            select(SubmissionReview)
+            .options(
+                selectinload(SubmissionReview.rubric_scores),
+                selectinload(SubmissionReview.reviewer),
+            )
+            .where(SubmissionReview.id == review.id)
+        )
+        rev_res = await db.execute(rev_q)
+        return rev_res.scalar_one()
+
+    @staticmethod
+    async def get_submission_detail(
+        db: AsyncSession,
+        submission_id: uuid.UUID,
+    ) -> AssignmentSubmission:
+        query = (
+            select(AssignmentSubmission)
+            .options(
+                selectinload(AssignmentSubmission.candidate),
+                selectinload(AssignmentSubmission.allocation).selectinload(AssignmentAllocation.assignment),
+                selectinload(AssignmentSubmission.attempts).selectinload(SubmissionAttempt.file_asset),
+                selectinload(AssignmentSubmission.attempts)
+                .selectinload(SubmissionAttempt.reviews)
+                .selectinload(SubmissionReview.rubric_scores),
+                selectinload(AssignmentSubmission.attempts)
+                .selectinload(SubmissionAttempt.reviews)
+                .selectinload(SubmissionReview.reviewer),
+            )
+            .where(AssignmentSubmission.id == submission_id)
+        )
+        res = await db.execute(query)
+        submission = res.scalar_one_or_none()
+        if not submission:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Submission not found.",
+            )
+        return submission
+
+    @staticmethod
+    async def list_submissions(
+        db: AsyncSession,
+        status: Optional[str] = None,
+        batch_id: Optional[uuid.UUID] = None,
+        assignment_id: Optional[uuid.UUID] = None,
+        candidate_id: Optional[uuid.UUID] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> Tuple[List[AssignmentSubmission], int, int]:
+        filters = []
+        if status:
+            filters.append(AssignmentSubmission.current_submission_status == status)
+        if candidate_id:
+            filters.append(AssignmentSubmission.candidate_id == candidate_id)
+
+        join_alloc = False
+        if batch_id:
+            filters.append(AssignmentAllocation.batch_id == batch_id)
+            join_alloc = True
+        if assignment_id:
+            filters.append(AssignmentAllocation.assignment_id == assignment_id)
+            join_alloc = True
+
+        count_query = select(func.count(AssignmentSubmission.id))
+        if join_alloc:
+            count_query = count_query.join(AssignmentAllocation, AssignmentSubmission.allocation_id == AssignmentAllocation.id)
+        count_query = count_query.where(*filters)
+        count_res = await db.execute(count_query)
+        total = count_res.scalar() or 0
+
+        total_pages = math.ceil(total / page_size) if total > 0 else 1
+        offset = (page - 1) * page_size
+
+        query = (
+            select(AssignmentSubmission)
+            .options(
+                selectinload(AssignmentSubmission.candidate),
+                selectinload(AssignmentSubmission.allocation).selectinload(AssignmentAllocation.assignment),
+                selectinload(AssignmentSubmission.allocation).selectinload(AssignmentAllocation.batch),
+                selectinload(AssignmentSubmission.attempts),
+            )
+        )
+        if join_alloc:
+            query = query.join(AssignmentAllocation, AssignmentSubmission.allocation_id == AssignmentAllocation.id)
+        query = (
+            query.where(*filters)
+            .order_by(AssignmentSubmission.latest_submitted_at_utc.desc().nullslast(), AssignmentSubmission.created_at.desc())
+            .offset(offset)
+            .limit(page_size)
+        )
+
+        res = await db.execute(query)
+        submissions = list(res.scalars().all())
+        return submissions, total, total_pages
+

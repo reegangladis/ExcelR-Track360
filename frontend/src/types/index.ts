@@ -183,3 +183,96 @@ export interface AllocationPaginated {
   page_size: number;
   total_pages: number;
 }
+
+export interface FileAssetItem {
+  id: string;
+  original_filename: string;
+  file_size_bytes: number;
+  mime_type: string;
+  created_at: string;
+}
+
+export interface RubricScoreItem {
+  criterion_key: string;
+  criterion_title: string;
+  max_points: number;
+  awarded_points: number;
+  criterion_comments?: string | null;
+}
+
+export interface SubmissionReviewItem {
+  id: string;
+  attempt_id: string;
+  reviewer_id: string;
+  review_outcome: 'APPROVED' | 'CORRECTIONS_REQUESTED' | 'REJECTED';
+  total_score: number;
+  qualitative_feedback: string;
+  internal_evaluator_notes?: string | null;
+  review_completed_at_utc: string;
+  reviewer_name?: string | null;
+  rubric_scores: RubricScoreItem[];
+}
+
+export interface SubmissionAttemptItem {
+  id: string;
+  attempt_number: number;
+  file_asset?: FileAssetItem | null;
+  repository_url?: string | null;
+  student_notes?: string | null;
+  submitted_at_utc: string;
+  is_late: boolean;
+  lateness_minutes: number;
+  created_at: string;
+  reviews?: SubmissionReviewItem[];
+}
+
+export interface AssignmentSubmissionListItem {
+  id: string;
+  allocation_id: string;
+  candidate_id: string;
+  candidate_name: string;
+  candidate_number: string;
+  assignment_code: string;
+  assignment_title: string;
+  batch_code?: string | null;
+  current_submission_status: string;
+  current_completion_status: string;
+  total_attempts: number;
+  latest_score?: number | null;
+  due_date_utc: string;
+  latest_submitted_at_utc?: string | null;
+  is_late: boolean;
+}
+
+export interface AssignmentSubmissionPaginated {
+  items: AssignmentSubmissionListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface AssignmentSubmissionDetail {
+  id: string;
+  allocation_id: string;
+  candidate_id: string;
+  candidate_name: string;
+  candidate_number: string;
+  candidate_email: string;
+  assignment_id: string;
+  assignment_code: string;
+  assignment_title: string;
+  assignment_rubric: RubricCriterionItem[];
+  passing_score: number;
+  max_score: number;
+  current_submission_status: string;
+  current_completion_status: string;
+  total_attempts: number;
+  latest_score?: number | null;
+  first_submitted_at_utc?: string | null;
+  latest_submitted_at_utc?: string | null;
+  due_date_utc: string;
+  grace_period_end_utc?: string | null;
+  attempts: SubmissionAttemptItem[];
+}
+

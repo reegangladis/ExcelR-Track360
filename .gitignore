@@ -48,6 +48,8 @@ dist-ssr/
 *.tsbuildinfo
 
 # Storage & Uploads
+data/
+backend/data/
 storage/uploads/*
 !storage/uploads/.gitkeep
 certificates/generated/*

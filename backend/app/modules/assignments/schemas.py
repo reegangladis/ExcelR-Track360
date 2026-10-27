@@ -124,3 +124,107 @@ class AllocationPaginatedResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class ReviewRubricScoreItem(BaseModel):
+    criterion_key: str = Field(..., min_length=2, max_length=64)
+    criterion_title: str = Field(..., min_length=2, max_length=150)
+    max_points: float = Field(..., gt=0)
+    awarded_points: float = Field(..., ge=0)
+    criterion_comments: Optional[str] = None
+
+    @field_validator("awarded_points")
+    @classmethod
+    def validate_awarded(cls, v: float, info) -> float:
+        max_p = info.data.get("max_points")
+        if max_p is not None and v > max_p:
+            raise ValueError(f"Awarded points ({v}) cannot exceed criterion max points ({max_p})")
+        return v
+
+
+class SubmissionReviewCreateRequest(BaseModel):
+    review_outcome: str = Field(..., pattern="^(APPROVED|CORRECTIONS_REQUESTED|REJECTED)$")
+    qualitative_feedback: str = Field(..., min_length=5)
+    internal_evaluator_notes: Optional[str] = None
+    rubric_scores: List[ReviewRubricScoreItem] = Field(default_factory=list)
+
+
+class SubmissionReviewResponse(BaseModel):
+    id: uuid.UUID
+    attempt_id: uuid.UUID
+    reviewer_id: uuid.UUID
+    reviewer_name: Optional[str] = None
+    review_outcome: str
+    total_score: float
+    qualitative_feedback: str
+    internal_evaluator_notes: Optional[str] = None
+    review_completed_at_utc: datetime
+    rubric_scores: List[ReviewRubricScoreItem] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SubmissionAttemptResponse(BaseModel):
+    id: uuid.UUID
+    attempt_number: int
+    file_asset_id: Optional[uuid.UUID] = None
+    original_filename: Optional[str] = None
+    file_size_bytes: Optional[int] = None
+    repository_url: Optional[str] = None
+    student_notes: Optional[str] = None
+    submitted_at_utc: datetime
+    is_late: bool
+    lateness_minutes: int
+    reviews: List[SubmissionReviewResponse] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AssignmentSubmissionDetailResponse(BaseModel):
+    id: uuid.UUID
+    allocation_id: uuid.UUID
+    candidate_id: uuid.UUID
+    candidate_name: str
+    candidate_number: str
+    assignment_code: str
+    assignment_title: str
+    current_submission_status: str
+    current_completion_status: str
+    total_attempts: int
+    latest_score: Optional[float] = None
+    first_submitted_at_utc: Optional[datetime] = None
+    latest_submitted_at_utc: Optional[datetime] = None
+    due_date_utc: datetime
+    grace_period_end_utc: Optional[datetime] = None
+    attempts: List[SubmissionAttemptResponse] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AssignmentSubmissionListItem(BaseModel):
+    id: uuid.UUID
+    allocation_id: uuid.UUID
+    candidate_id: uuid.UUID
+    candidate_name: str
+    candidate_number: str
+    assignment_code: str
+    assignment_title: str
+    batch_code: Optional[str] = None
+    current_submission_status: str
+    current_completion_status: str
+    total_attempts: int
+    latest_score: Optional[float] = None
+    due_date_utc: datetime
+    latest_submitted_at_utc: Optional[datetime] = None
+    is_late: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AssignmentSubmissionPaginated(BaseModel):
+    items: List[AssignmentSubmissionListItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+

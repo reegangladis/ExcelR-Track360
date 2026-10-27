@@ -17,23 +17,32 @@ import {
   Loader2,
   ListPlus,
   Trash2,
+  ClipboardCheck,
+  UploadCloud,
+  Award,
 } from 'lucide-react';
+import { SubmissionReviewModal } from '@/components/SubmissionReviewModal';
+import { SubmitDeliverableModal } from '@/components/SubmitDeliverableModal';
 
 export const AssignmentsPage: React.FC = () => {
   const queryClient = useQueryClient();
 
-  // Active View Tab: 'catalogue' | 'allocations'
-  const [activeTab, setActiveTab] = useState<'catalogue' | 'allocations'>('catalogue');
+  // Active View Tab: 'catalogue' | 'allocations' | 'submissions'
+  const [activeTab, setActiveTab] = useState<'catalogue' | 'allocations' | 'submissions'>('catalogue');
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTrack, setSelectedTrack] = useState('');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 12;
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
+  const [selectedSubmissionIdForReview, setSelectedSubmissionIdForReview] = useState<string | null>(null);
+  const [isSubmitDeliverableModalOpen, setIsSubmitDeliverableModalOpen] = useState(false);
+  const [activeAllocationForSubmit, setActiveAllocationForSubmit] = useState<string | undefined>(undefined);
 
   // Assignment Form State
   const [formData, setFormData] = useState({
@@ -100,6 +109,18 @@ export const AssignmentsPage: React.FC = () => {
         page_size: pageSize,
       }),
     enabled: activeTab === 'allocations',
+  });
+
+  // Fetch Submissions Query (Phase 7)
+  const { data: submissionData, isLoading: isSubmissionsLoading } = useQuery({
+    queryKey: ['submissions', selectedStatusFilter, page],
+    queryFn: () =>
+      api.getSubmissions({
+        status: selectedStatusFilter || undefined,
+        page,
+        page_size: pageSize,
+      }),
+    enabled: activeTab === 'submissions',
   });
 
   // Create Assignment Mutation
@@ -230,6 +251,16 @@ export const AssignmentsPage: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => {
+              setActiveAllocationForSubmit(undefined);
+              setIsSubmitDeliverableModalOpen(true);
+            }}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm"
+          >
+            <UploadCloud className="w-4 h-4" />
+            Submit Deliverable
+          </button>
+          <button
             onClick={() => setIsAllocateModalOpen(true)}
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
           >
@@ -276,6 +307,20 @@ export const AssignmentsPage: React.FC = () => {
           >
             <Calendar className="w-4 h-4" />
             Cohort Allocations
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('submissions');
+              setPage(1);
+            }}
+            className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+              activeTab === 'submissions'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            <ClipboardCheck className="w-4 h-4" />
+            Submissions & Review Queue
           </button>
         </nav>
       </div>
@@ -491,6 +536,174 @@ export const AssignmentsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* VIEW 3: Submissions & Review Queue (Phase 7) */}
+      {activeTab === 'submissions' && (
+        <div className="space-y-4">
+          {/* Filters Bar */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <label htmlFor="sub_status_filter" className="text-xs font-semibold text-slate-600 flex items-center gap-1.5 shrink-0">
+                <Filter className="w-3.5 h-3.5 text-slate-400" /> Filter Status:
+              </label>
+              <select
+                id="sub_status_filter"
+                value={selectedStatusFilter}
+                onChange={(e) => {
+                  setSelectedStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">All Statuses</option>
+                <option value="SUBMITTED">Submitted (Pending Review)</option>
+                <option value="UNDER_REVIEW">Under Review</option>
+                <option value="APPROVED">Approved (Passed)</option>
+                <option value="CORRECTIONS_REQUESTED">Corrections Requested</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+
+            <div className="text-xs text-slate-500">
+              Showing {submissionData?.items.length || 0} of {submissionData?.total || 0} candidate submissions
+            </div>
+          </div>
+
+          {/* Submissions Table */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            {isSubmissionsLoading ? (
+              <div className="p-12 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                <span className="text-sm">Loading submissions & evaluation queue...</span>
+              </div>
+            ) : !submissionData?.items || submissionData.items.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 space-y-3">
+                <ClipboardCheck className="w-10 h-10 mx-auto text-slate-300" />
+                <h3 className="text-base font-semibold text-slate-700">No Submissions Found</h3>
+                <p className="text-xs max-w-sm mx-auto">
+                  Candidates have not submitted any deliverables matching the current filter criteria.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/75 text-slate-600 uppercase text-[11px] font-semibold tracking-wider">
+                      <th className="py-3.5 pl-6 pr-3">Candidate</th>
+                      <th className="px-3 py-3.5">Assignment</th>
+                      <th className="px-3 py-3.5">Batch</th>
+                      <th className="px-3 py-3.5 text-center">Attempt</th>
+                      <th className="px-3 py-3.5">Submitted UTC</th>
+                      <th className="px-3 py-3.5">Lateness</th>
+                      <th className="px-3 py-3.5">Score</th>
+                      <th className="px-3 py-3.5">Status</th>
+                      <th className="py-3.5 pl-3 pr-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {submissionData.items.map((sub) => {
+                      const isApproved = sub.current_submission_status === 'APPROVED';
+                      const isCorrections = sub.current_submission_status === 'CORRECTIONS_REQUESTED';
+                      const isRejected = sub.current_submission_status === 'REJECTED';
+
+                      return (
+                        <tr key={sub.id} className="hover:bg-slate-50/75 transition-colors">
+                          <td className="py-4 pl-6 pr-3 font-medium text-slate-900">
+                            <div>{sub.candidate_name}</div>
+                            <div className="text-[11px] font-mono text-slate-400">{sub.candidate_number}</div>
+                          </td>
+                          <td className="px-3 py-4">
+                            <span className="font-mono font-semibold text-indigo-600 block">{sub.assignment_code}</span>
+                            <span className="text-[11px] text-slate-500 line-clamp-1">{sub.assignment_title}</span>
+                          </td>
+                          <td className="px-3 py-4 font-mono text-slate-600">
+                            {sub.batch_code || <span className="text-slate-400">Direct</span>}
+                          </td>
+                          <td className="px-3 py-4 text-center">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                              #{sub.total_attempts}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 font-mono text-slate-600">
+                            {sub.latest_submitted_at_utc ? (
+                              new Date(sub.latest_submitted_at_utc).toLocaleString()
+                            ) : (
+                              <span className="text-slate-400">N/A</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-4">
+                            {sub.is_late ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                Late
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                On Time
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-4 font-mono">
+                            {sub.latest_score !== null && sub.latest_score !== undefined ? (
+                              <span className={isApproved ? 'font-bold text-emerald-600' : 'font-semibold text-slate-700'}>
+                                {sub.latest_score.toFixed(1)} pts
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">Ungraded</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-4">
+                            {isApproved && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Approved
+                              </span>
+                            )}
+                            {isCorrections && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                <Clock className="w-3.5 h-3.5" /> Corrections Req.
+                              </span>
+                            )}
+                            {isRejected && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                Rejected
+                              </span>
+                            )}
+                            {!isApproved && !isCorrections && !isRejected && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                {sub.current_submission_status}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-4 pl-3 pr-6 text-right space-x-2">
+                            <button
+                              onClick={() => {
+                                setActiveAllocationForSubmit(sub.allocation_id);
+                                setIsSubmitDeliverableModalOpen(true);
+                              }}
+                              title="Submit New Attempt Deliverable"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                            >
+                              <UploadCloud className="w-3.5 h-3.5 text-slate-400" />
+                              Submit
+                            </button>
+                            <button
+                              onClick={() => setSelectedSubmissionIdForReview(sub.id)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors"
+                            >
+                              <Award className="w-3.5 h-3.5" />
+                              Evaluate
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
 
       {/* CREATE ASSIGNMENT MODAL */}
       {isCreateModalOpen && (
@@ -854,6 +1067,19 @@ export const AssignmentsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modals for Phase 7 */}
+      <SubmissionReviewModal
+        submissionId={selectedSubmissionIdForReview}
+        onClose={() => setSelectedSubmissionIdForReview(null)}
+      />
+
+      <SubmitDeliverableModal
+        isOpen={isSubmitDeliverableModalOpen}
+        onClose={() => setIsSubmitDeliverableModalOpen(false)}
+        allocations={allocationData?.items || []}
+        defaultAllocationId={activeAllocationForSubmit}
+      />
     </div>
   );
 };
