@@ -802,6 +802,55 @@ export interface AuditLogListResponse {
   page: number;
   page_size: number;
 }
+export interface BulkAssignmentStatusItem {
+  submission_id: string;
+  status: 'Not submitted' | 'Submitted' | 'Redo' | 'Done' | string;
+  awarded_score?: number | null;
+  correction_note?: string | null;
+  evaluator_notes?: string | null;
+}
 
+export interface BulkAssignmentStatusUpdateRequest {
+  items: BulkAssignmentStatusItem[];
+}
 
+export interface BulkAssignmentStatusItemResult {
+  submission_id: string;
+  success: boolean;
+  status?: string | null;
+  error?: string | null;
+}
 
+export interface BulkAssignmentStatusUpdateResponse {
+  total_processed: number;
+  successful_count: number;
+  failed_count: number;
+  results: BulkAssignmentStatusItemResult[];
+}
+
+export interface ProjectQueueItem {
+  candidate_id: string;
+  candidate_number: string;
+  candidate_name: string;
+  candidate_email: string;
+  candidate_phone?: string | null;
+  batch_code?: string | null;
+  track_id: string;
+  track_title: string;
+  completion_date_utc: string;
+  business_days_in_queue: number;
+  is_overdue_15_days: boolean;
+}
+
+export interface ProjectQueuePaginatedResponse {
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  overdue_count: number;
+  items: ProjectQueueItem[];
+}
+
+export interface ProjectDropRequest {
+  reason: string;
+}

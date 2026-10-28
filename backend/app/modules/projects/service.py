@@ -42,7 +42,12 @@ from app.modules.projects.schemas import (
     GroupAdvanceRequest,
     GroupReadinessResponse,
     ProjectProgressionRequestItem,
+    ProjectGroupResponse,
+    ProjectQueueItem,
+    ProjectQueuePaginatedResponse,
+    ProjectDropRequest,
 )
+from app.shared.business_calendar import calculate_business_days
 
 
 class ProjectService:
@@ -1569,5 +1574,164 @@ class ProjectGroupService:
         )
         res = await db.execute(query)
         return list(res.unique().scalars().all())
+
+    @staticmethod
+    async def get_project_queue(
+        db: AsyncSession,
+        track_id: Optional[uuid.UUID] = None,
+        batch_id: Optional[uuid.UUID] = None,
+        only_overdue: bool = False,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> ProjectQueuePaginatedResponse:
+        """
+        Retrieves project allocation queue with 15-business-day SLA tracking (BRD Part 7).
+        Calculates working days since assignment completion excluding weekends.
+        """
+        active_group_candidates_q = (
+            select(ProjectGroupMember.candidate_id)
+            .join(ProjectGroup, ProjectGroupMember.group_id == ProjectGroup.id)
+            .where(
+                ProjectGroupMember.status == "ACTIVE",
+                ProjectGroup.group_status.in_(["ACTIVE", "LOCKED"]),
+            )
+        )
+        active_cands_res = await db.execute(active_group_candidates_q)
+        active_cand_ids = set(active_cands_res.scalars().all())
+
+        cand_q = (
+            select(Candidate)
+            .options(
+                selectinload(Candidate.enrollments).selectinload(Enrollment.batch).selectinload(Batch.track)
+            )
+            .where(
+                Candidate.project_eligible == True,
+                Candidate.lifecycle_status.in_(["ACTIVE", "ENROLLED"]),
+            )
+        )
+        if active_cand_ids:
+            cand_q = cand_q.where(Candidate.id.notin_(active_cand_ids))
+
+        cands = (await db.execute(cand_q)).scalars().all()
+
+        queue_items: List[ProjectQueueItem] = []
+        total_overdue = 0
+
+        for c in cands:
+            primary_enrollment = c.enrollments[0] if c.enrollments else None
+            c_track = primary_enrollment.batch.track if primary_enrollment and primary_enrollment.batch else None
+            c_batch = primary_enrollment.batch if primary_enrollment else None
+
+            if track_id and (not c_track or c_track.id != track_id):
+                continue
+            if batch_id and (not c_batch or c_batch.id != batch_id):
+                continue
+
+            entry_date = c.updated_at or c.created_at
+            b_days = calculate_business_days(entry_date)
+            is_overdue = b_days > 15
+            if is_overdue:
+                total_overdue += 1
+
+            if only_overdue and not is_overdue:
+                continue
+
+            queue_items.append(ProjectQueueItem(
+                candidate_id=c.id,
+                candidate_number=c.candidate_number,
+                candidate_name=c.full_name,
+                email=c.email,
+                track_id=c_track.id if c_track else uuid.uuid4(),
+                track_title=c_track.title if c_track else "General Track",
+                batch_id=c_batch.id if c_batch else None,
+                batch_code=c_batch.batch_code if c_batch else None,
+                completed_projects_count=c.completed_projects_count,
+                queue_entry_date=entry_date,
+                business_days_in_queue=b_days,
+                is_overdue_15_days=is_overdue,
+            ))
+
+        queue_items.sort(key=lambda x: (not x.is_overdue_15_days, -x.business_days_in_queue))
+
+        total = len(queue_items)
+        total_pages = max(1, (total + page_size - 1) // page_size)
+        start_idx = (page - 1) * page_size
+        paginated_items = queue_items[start_idx : start_idx + page_size]
+
+        return ProjectQueuePaginatedResponse(
+            items=paginated_items,
+            total=total,
+            total_overdue=total_overdue,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        )
+
+    @staticmethod
+    async def drop_project_allocation(
+        db: AsyncSession,
+        group_id: uuid.UUID,
+        allocation_id: uuid.UUID,
+        payload: ProjectDropRequest,
+        actor_id: uuid.UUID,
+        request_ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
+    ) -> ProjectGroupResponse:
+        """
+        Marks an allocated project as DROPPED with mandatory coordinator reason (BRD Part 7).
+        Preserves allocation history, does NOT award completion credit, and logs audit trail.
+        """
+        reason = (payload.reason or "").strip()
+        if not reason or len(reason) < 5:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="A meaningful reason with at least 5 characters is mandatory when dropping a project.",
+            )
+
+        group = await ProjectGroupService.get_group(db, group_id)
+        alloc_res = await db.execute(
+            select(ProjectAllocation).where(
+                ProjectAllocation.id == allocation_id,
+                ProjectAllocation.group_id == group_id,
+            )
+        )
+        allocation = alloc_res.scalar_one_or_none()
+        if not allocation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project allocation '{allocation_id}' for group '{group_id}' not found.",
+            )
+
+        now = utc_now()
+        old_status = allocation.status
+        allocation.status = "DROPPED"
+        allocation.completed_at = now
+
+        group.group_status = "ACTIVE"
+        group.readiness_status = "NOT_READY"
+        group.project_id = None
+        group.current_milestone_id = None
+        group.updated_at = now
+
+        await write_audit_log(
+            db=db,
+            action="project:allocation_dropped",
+            actor_id=actor_id,
+            resource_type="project_allocation",
+            resource_id=str(allocation.id),
+            details={
+                "group_id": str(group_id),
+                "project_id": str(allocation.project_id),
+                "old_status": old_status,
+                "new_status": "DROPPED",
+                "drop_reason": reason,
+            },
+            request_ip=request_ip,
+            user_agent=user_agent,
+        )
+
+        await db.commit()
+        db.expire_all()
+        return await ProjectGroupService.get_group(db, group_id)
 
 

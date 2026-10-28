@@ -378,3 +378,31 @@ class GroupAdvanceRequest(BaseModel):
     allow_cap_extension: bool = False
 
 
+class ProjectQueueItem(BaseModel):
+    candidate_id: uuid.UUID
+    candidate_number: str
+    candidate_name: str
+    email: str
+    track_id: uuid.UUID
+    track_title: str
+    batch_id: Optional[uuid.UUID] = None
+    batch_code: Optional[str] = None
+    completed_projects_count: int
+    queue_entry_date: datetime
+    business_days_in_queue: int
+    is_overdue_15_days: bool
+
+
+class ProjectQueuePaginatedResponse(BaseModel):
+    items: List[ProjectQueueItem]
+    total: int
+    total_overdue: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class ProjectDropRequest(BaseModel):
+    reason: str = Field(..., min_length=5, description="Mandatory reason for dropping project allocation")
+
+

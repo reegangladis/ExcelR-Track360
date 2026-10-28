@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ExcelR Track360 - Interactive Staff Operations Prototype (No-Cost)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --primary-light: #eef2ff;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+      --success-bg: #ecfdf5;
+      --success-text: #047857;
+      --success-border: #a7f3d0;
+      --warning-bg: #fffbeb;
+      --warning-text: #b45309;
+      --warning-border: #fde68a;
+      --danger-bg: #fef2f2;
+      --danger-text: #b91c1c;
+      --danger-border: #fecaca;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--slate-50);
+      color: var(--slate-800);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Prototype Notice Banner */
+    .prototype-banner {
+      background: linear-gradient(90deg, #1e1b4b 0%, #312e81 100%);
+      color: #e0e7ff;
+      padding: 8px 24px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .prototype-badge {
+      background: #4338ca;
+      color: #ffffff;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 8px;
+    }
+
+    /* Header Nav */
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--slate-200);
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-mark {
+      background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+      color: #fff;
+      font-weight: 800;
+      font-size: 16px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      letter-spacing: -0.02em;
+    }
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--slate-900);
+      letter-spacing: -0.01em;
+    }
+    .brand-sub {
+      font-size: 12px;
+      color: var(--slate-500);
+      margin-left: 4px;
+    }
+
+    nav {
+      display: flex;
+      gap: 4px;
+    }
+    .nav-btn {
+      background: transparent;
+      border: none;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--slate-600);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-btn:hover {
+      background: var(--slate-100);
+      color: var(--slate-900);
+    }
+    .nav-btn.active {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px 4px 4px;
+      background: var(--slate-100);
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--slate-700);
+    }
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      padding: 32px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Views */
+    .view-panel {
+      display: none;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+    .view-panel.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Card Containers */
+    .card {
+      background: #ffffff;
+      border: 1px solid var(--slate-200);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--slate-200);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--slate-900);
+    }
+    .card-desc {
+      font-size: 12px;
+      color: var(--slate-500);
+      margin-top: 2px;
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .input-search, .select-filter {
+      padding: 8px 12px;
+      border: 1px solid var(--slate-300);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--slate-800);
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .input-search:focus, .select-filter:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-light);
+    }
+    .input-search {
+      min-width: 240px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-secondary {
+      background: #fff;
+      border-color: var(--slate-300);
+      color: var(--slate-700);
+    }
+    .btn-secondary:hover {
+      background: var(--slate-50);
+      border-color: var(--slate-400);
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: #fff;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+
+    /* Tables & Grids */
+    .table-container {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+    thead th {
+      background: var(--slate-50);
+      color: var(--slate-600);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--slate-200);
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--slate-100);
+      transition: background 0.1s ease;
+    }
+    tbody tr:hover {
+      background: rgba(248, 250, 252, 0.8);
+    }
+    tbody td {
+      padding: 14px 16px;
+      vertical-align: middle;
+      color: var(--slate-700);
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Status Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .badge-done {
+      background: var(--success-bg);
+      color: var(--success-text);
+      border-color: var(--success-border);
+    }
+    .badge-redo {
+      background: var(--warning-bg);
+      color: var(--warning-text);
+      border-color: var(--warning-border);
+    }
+    .badge-submitted {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+    .badge-not-submitted {
+      background: var(--slate-100);
+      color: var(--slate-600);
+      border-color: var(--slate-200);
+    }
+    .badge-overdue {
+      background: var(--danger-bg);
+      color: var(--danger-text);
+      border-color: var(--danger-border);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    /* Modal Styles */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(2px);
+      z-index: 50;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.active {
+      display: flex;
+    }
+    .modal {
+      background: #fff;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-xl);
+      max-width: 520px;
+      width: 100%;
+      overflow: hidden;
+      animation: modalSlide 0.2s ease-out;
+    }
+    @keyframes modalSlide {
+      from { transform: translateY(16px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--slate-200);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--slate-900);
+    }
+    .modal-body {
+      padding: 20px;
+      space-y: 16px;
+    }
+    .modal-footer {
+      padding: 14px 20px;
+      background: var(--slate-50);
+      border-top: 1px solid var(--slate-200);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--slate-700);
+      margin-bottom: 6px;
+    }
+    .form-group textarea, .form-group input, .form-group select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--slate-300);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .form-group textarea:focus, .form-group input:focus {
+      border-color: var(--primary);
+      outline: none;
+    }
+
+    /* Metric Cards */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .metric-card {
+      background: #fff;
+      border: 1px solid var(--slate-200);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .metric-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .metric-value {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--slate-900);
+      margin-top: 4px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .metric-hint {
+      font-size: 11px;
+      color: var(--slate-400);
+      margin-top: 4px;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--slate-900);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: var(--shadow-xl);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Timeline Component */
+    .timeline {
+      position: relative;
+      padding-left: 28px;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 10px;
+      top: 6px;
+      bottom: 6px;
+      width: 2px;
+      background: var(--slate-200);
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    .timeline-node {
+      position: absolute;
+      left: -28px;
+      top: 2px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .timeline-node.done {
+      border-color: var(--success-text);
+      background: var(--success-bg);
+    }
+    .timeline-node.active {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .timeline-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--slate-900);
+    }
+    .timeline-time {
+      font-size: 11px;
+      color: var(--slate-400);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 2px;
+    }
+    .timeline-desc {
+      font-size: 12px;
+      color: var(--slate-600);
+      margin-top: 6px;
+      background: var(--slate-50);
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--slate-200);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Prototype Disclaimer Banner -->
+  <div class="prototype-banner">
+    <div>
+      <span class="prototype-badge">Stage 1 Prototype</span>
+      <strong>No-Cost Operational Prototype</strong> — Zero paid cloud dependencies. Demonstrates core staff workflows with synthetic data.
+    </div>
+    <div>
+      <span style="opacity: 0.85;">Oct 26, 2026 BRD Alignment</span>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="logo-mark">360</div>
+      <div>
+        <span class="brand-title">ExcelR Track360</span>
+        <span class="brand-sub">Staff Workflow Console</span>
+      </div>
+    </div>
+    <nav>
+      <button class="nav-btn active" onclick="switchView('assignments', this)">
+        <span>📋</span> Assignment Grid
+      </button>
+      <button class="nav-btn" onclick="switchView('queue', this)">
+        <span>⏳</span> Project Queue (15-Day SLA)
+      </button>
+      <button class="nav-btn" onclick="switchView('timeline', this)">
+        <span>⏱️</span> Learner Progression Timeline
+      </button>
+      <button class="nav-btn" onclick="switchView('certificates', this)">
+        <span>🎓</span> Certificate Queue & NASSCOM
+      </button>
+    </nav>
+    <div class="user-pill">
+      <div class="avatar">EV</div>
+      <span>evaluator@excelr.com</span>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main>
+
+    <!-- VIEW 1: ASSIGNMENT TRACKING GRID -->
+    <section id="view-assignments" class="view-panel active">
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">Total Assigned</div>
+          <div class="metric-value" id="asg-total-metric">28</div>
+          <div class="metric-hint">Data Analytics & Web Dev cohorts</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Done (Approved)</div>
+          <div class="metric-value" style="color: var(--success-text);" id="asg-done-metric">18</div>
+          <div class="metric-hint">100% prerequisite milestones</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Redo (Correction Req.)</div>
+          <div class="metric-value" style="color: var(--warning-text);" id="asg-redo-metric">4</div>
+          <div class="metric-hint">Requires mandatory feedback note</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Pending / Not Submitted</div>
+          <div class="metric-value" style="color: var(--slate-500);" id="asg-pending-metric">6</div>
+          <div class="metric-hint">Email submissions awaiting review</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Curriculum Assignment Evaluation Grid</div>
+            <div class="card-desc">Spreadsheet-like bulk updates supporting exact BRD statuses: Not submitted, Submitted, Redo, Done.</div>
+          </div>
+          <div class="controls-bar">
+            <input type="text" id="asg-search" class="input-search" placeholder="Search learner name, email, or code..." onkeyup="filterAssignments()" />
+            <select id="asg-course-filter" class="select-filter" onchange="filterAssignments()">
+              <option value="">All Courses</option>
+              <option value="Data Analytics">Data Analytics (DA)</option>
+              <option value="Full Stack Java">Full Stack Java (FSJ)</option>
+              <option value="Data Science">Data Science (DS)</option>
+            </select>
+            <select id="asg-status-filter" class="select-filter" onchange="filterAssignments()">
+              <option value="">All Statuses</option>
+              <option value="Not submitted">Not submitted</option>
+              <option value="Submitted">Submitted</option>
+              <option value="Redo">Redo</option>
+              <option value="Done">Done</option>
+            </select>
+            <button class="btn btn-primary" onclick="openBulkActionModal()">
+              <span>⚡</span> Bulk Status Update
+            </button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table id="assignment-table">
+            <thead>
+              <tr>
+                <th style="width: 40px;"><input type="checkbox" id="select-all-asg" onchange="toggleSelectAllAsg(this)" /></th>
+                <th>Learner</th>
+                <th>Course / Batch</th>
+                <th>Assignment</th>
+                <th>Attempts</th>
+                <th>Score</th>
+                <th>Status</th>
+                <th>Reviewer Feedback</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="assignment-table-body">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: PROJECT QUEUE (15-BUSINESS-DAY TARGET) -->
+    <section id="view-queue" class="view-panel">
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">Queue Size</div>
+          <div class="metric-value" id="queue-total-metric">6</div>
+          <div class="metric-hint">100% assignment milestone completers</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Within 15-Day SLA</div>
+          <div class="metric-value" style="color: var(--success-text);">4</div>
+          <div class="metric-hint">Excludes Saturdays & Sundays</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Overdue (>15 Business Days)</div>
+          <div class="metric-value" style="color: var(--danger-text);" id="queue-overdue-metric">2</div>
+          <div class="metric-hint">Immediate coordinator attention required</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Project Allocation Queue</div>
+            <div class="card-desc">Learners become eligible automatically upon completing all mandatory assignments. 15-business-day allocation target is strictly monitored excluding weekends.</div>
+          </div>
+          <div class="controls-bar">
+            <button class="btn btn-primary" onclick="openBulkProjectAllocationModal()">
+              <span>👥</span> Bulk Allocate to Project
+            </button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px;"><input type="checkbox" id="select-all-queue" onchange="toggleSelectAllQueue(this)" /></th>
+                <th>Candidate</th>
+                <th>Course Track</th>
+                <th>Completion Date</th>
+                <th>Business Days in Queue</th>
+                <th>SLA Compliance</th>
+                <th style="text-align: right;">Quick Actions</th>
+              </tr>
+            </thead>
+            <tbody id="queue-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: LEARNER PROGRESSION TIMELINE -->
+    <section id="view-timeline" class="view-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Learner Master Lifecycle & Timeline</div>
+            <div class="card-desc">Single identifiable learner profile across multiple courses, assignments, projects, and certifications.</div>
+          </div>
+          <div class="controls-bar">
+            <select id="timeline-learner-select" class="select-filter" onchange="renderLearnerTimeline()">
+              <option value="EX-DA-101">Aman Verma (EX-DA-101) — Data Analytics</option>
+              <option value="EX-DA-102">Kavita Iyer (EX-DA-102) — Data Analytics (Overdue Queue)</option>
+              <option value="EX-FSJ-205">Rohan Sharma (EX-FSJ-205) — Full Stack Java</option>
+            </select>
+          </div>
+        </div>
+        <div style="padding: 24px;">
+          <div id="timeline-container" class="timeline">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: CERTIFICATE QUEUE & NASSCOM -->
+    <section id="view-certificates" class="view-panel">
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">Course Certificates Ready</div>
+          <div class="metric-value">3</div>
+          <div class="metric-hint">100% assignments passed</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">NASSCOM Blocked</div>
+          <div class="metric-value" style="color: var(--danger-text);">2</div>
+          <div class="metric-hint">DA/DS courses pending official NASSCOM clearance</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Internship Credentials</div>
+          <div class="metric-value" style="color: var(--primary);">4</div>
+          <div class="metric-hint">Project 1: 3M | Project 2: 6M | Project 3: 9M</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Certification Issuance & Verification Queue</div>
+            <div class="card-desc">Enforces course certificate prerequisites and NASSCOM clearance rules for Data Analytics, Business Analytics, and Data Science.</div>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Track Title</th>
+                <th>Credential Type</th>
+                <th>Curriculum Status</th>
+                <th>NASSCOM Clearance</th>
+                <th>Eligibility Status</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="cert-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: Redo Correction Note Validation -->
+  <div id="redo-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Request Corrections (Redo)</div>
+        <button class="btn btn-secondary btn-sm" onclick="closeRedoModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--slate-600); margin-bottom: 12px;">
+          BRD Part 5 Rule: When setting an assignment to <strong>Redo</strong>, a meaningful evaluator correction note is mandatory.
+        </p>
+        <div class="form-group">
+          <label for="redo-note">Correction Notes & Feedback * (Min 5 chars)</label>
+          <textarea id="redo-note" rows="4" placeholder="Describe the deficiencies and specific steps needed for resubmission..."></textarea>
+          <div id="redo-error" style="color: var(--danger-text); font-size: 11px; margin-top: 4px; display: none;">
+            A meaningful correction note is required. Blank or whitespace notes are rejected.
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeRedoModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmRedo()">Save Redo Status</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Bulk Status Update -->
+  <div id="bulk-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Bulk Assignment Status Update</div>
+        <button class="btn btn-secondary btn-sm" onclick="closeBulkModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--slate-600); margin-bottom: 12px;">
+          Apply atomic status changes to <span id="bulk-selected-count" style="font-weight: 700;">0</span> selected learner rows.
+        </p>
+        <div class="form-group">
+          <label>Target Status</label>
+          <select id="bulk-target-status" onchange="handleBulkStatusChange()">
+            <option value="Done">Done (Passed & Approved)</option>
+            <option value="Redo">Redo (Corrections Requested)</option>
+            <option value="Submitted">Submitted (Under Review)</option>
+            <option value="Not submitted">Not submitted</option>
+          </select>
+        </div>
+        <div class="form-group" id="bulk-note-group" style="display: none;">
+          <label>Correction Note (Mandatory for Redo)</label>
+          <textarea id="bulk-redo-note" rows="3" placeholder="Provide actionable feedback for all flagged learners..."></textarea>
+          <div id="bulk-note-error" style="color: var(--danger-text); font-size: 11px; margin-top: 4px; display: none;">
+            Meaningful feedback note is mandatory when marking Redo.
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeBulkModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="applyBulkStatusUpdate()">Apply Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Project Allocation -->
+  <div id="project-alloc-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Allocate Learners to Project</div>
+        <button class="btn btn-secondary btn-sm" onclick="closeProjectAllocModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--slate-600); margin-bottom: 12px;">
+          Allocating <span id="alloc-selected-count" style="font-weight: 700;">0</span> eligible learners.
+        </p>
+        <div class="form-group">
+          <label>Target Project Specification</label>
+          <select id="alloc-project-select">
+            <option value="PRJ-DA-01">E-Commerce Customer Churn Analytics (PRJ-DA-01)</option>
+            <option value="PRJ-DA-02">Healthcare Operations & KPI Dashboard (PRJ-DA-02)</option>
+            <option value="PRJ-FSJ-01">Distributed Microservices Order Engine (PRJ-FSJ-01)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Target Team Group Name</label>
+          <input type="text" id="alloc-group-name" value="Batch-DA-Cohort-Alpha" />
+        </div>
+        <div class="form-group">
+          <label>Assigned Industry Mentor</label>
+          <select id="alloc-mentor-select">
+            <option value="MTR-01">Dr. Arvind Rao (Lead Data Architect)</option>
+            <option value="MTR-02">Priya Sundaram (Principal Engineer)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeProjectAllocModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmProjectAllocation()">Confirm Project Allocation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <span id="toast-icon">✓</span>
+    <span id="toast-msg">Action completed successfully</span>
+  </div>
+
+  <script>
+    // Synthetic Prototype Data
+    const mockLearners = [
+      { id: '1', name: 'Aman Verma', number: 'EX-DA-101', course: 'Data Analytics', batch: 'DA-2026-B1', assignment: 'SQL Complex Aggregations', attempts: 2, score: 88, status: 'Done', feedback: 'Excellent query optimization and indexing.' },
+      { id: '2', name: 'Pooja Nair', number: 'EX-DA-102', course: 'Data Analytics', batch: 'DA-2026-B1', assignment: 'PowerBI Sales Dashboard', attempts: 1, score: 0, status: 'Redo', feedback: 'Please update exploratory analysis charts with proper labels.' },
+      { id: '3', name: 'Kavita Iyer', number: 'EX-DA-103', course: 'Data Analytics', batch: 'DA-2026-B1', assignment: 'Python Milestone 1', attempts: 1, score: 92, status: 'Done', feedback: 'Clean modular functions with docstrings.' },
+      { id: '4', name: 'Rohan Sharma', number: 'EX-FSJ-205', course: 'Full Stack Java', batch: 'FSJ-2026-A', assignment: 'Spring Security JWT', attempts: 0, score: 0, status: 'Not submitted', feedback: '' },
+      { id: '5', name: 'Vikram Seth', number: 'EX-FSJ-206', course: 'Full Stack Java', batch: 'FSJ-2026-A', assignment: 'React Context API', attempts: 1, score: 0, status: 'Submitted', feedback: 'Email deliverable received; awaiting evaluator rubric.' },
+      { id: '6', name: 'Deepa Menon', number: 'EX-DS-301', course: 'Data Science', batch: 'DS-2026-C', assignment: 'Scikit-Learn Predictive Model', attempts: 2, score: 95, status: 'Done', feedback: 'Cross-validation ROC-AUC exceeds 0.85.' }
+    ];
+
+    const mockQueue = [
+      { id: 'q1', name: 'Kavita Iyer', number: 'EX-DA-103', track: 'Data Analytics', completionDate: '2026-10-02', businessDays: 17, isOverdue: true },
+      { id: 'q2', name: 'Aman Verma', number: 'EX-DA-101', track: 'Data Analytics', completionDate: '2026-10-18', businessDays: 7, isOverdue: false },
+      { id: 'q3', name: 'Deepa Menon', number: 'EX-DS-301', track: 'Data Science', completionDate: '2026-10-22', businessDays: 4, isOverdue: false },
+      { id: 'q4', name: 'Rahul Joshi', number: 'EX-DA-104', track: 'Data Analytics', completionDate: '2026-09-28', businessDays: 21, isOverdue: true },
+      { id: 'q5', name: 'Sana Khan', number: 'EX-FSJ-208', track: 'Full Stack Java', completionDate: '2026-10-20', businessDays: 5, isOverdue: false },
+      { id: 'q6', name: 'Anil Kumar', number: 'EX-DA-105', track: 'Data Analytics', completionDate: '2026-10-24', businessDays: 2, isOverdue: false },
+    ];
+
+    const mockCertificates = [
+      { id: 'c1', name: 'Aman Verma', number: 'EX-DA-101', track: 'Data Analytics', type: 'Course Certificate', curriculumDone: true, nasscomCleared: true, eligible: true },
+      { id: 'c2', name: 'Deepa Menon', number: 'EX-DS-301', track: 'Data Science', type: 'Course Certificate', curriculumDone: true, nasscomCleared: false, eligible: false, blocker: 'Pending NASSCOM clearance test score' },
+      { id: 'c3', name: 'Kavita Iyer', number: 'EX-DA-103', track: 'Data Analytics', type: 'Course Certificate', curriculumDone: true, nasscomCleared: false, eligible: false, blocker: 'Pending NASSCOM clearance test score' },
+      { id: 'c4', name: 'Aman Verma', number: 'EX-DA-101', track: 'Data Analytics', type: 'Internship (3 Months)', curriculumDone: true, nasscomCleared: true, eligible: true },
+    ];
+
+    let pendingRedoId = null;
+
+    // View Navigation
+    function switchView(viewName, btnEl) {
+      document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('view-' + viewName).classList.add('active');
+      btnEl.classList.add('active');
+    }
+
+    // Render Assignment Table
+    function renderAssignments(data) {
+      const tbody = document.getElementById('assignment-table-body');
+      tbody.innerHTML = '';
+      data.forEach(item => {
+        const badgeClass = item.status === 'Done' ? 'badge-done' :
+                           item.status === 'Redo' ? 'badge-redo' :
+                           item.status === 'Submitted' ? 'badge-submitted' : 'badge-not-submitted';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input type="checkbox" class="asg-row-chk" data-id="${item.id}" /></td>
+          <td>
+            <div style="font-weight: 600; color: var(--slate-900);">${item.name}</div>
+            <div class="font-mono" style="font-size: 11px; color: var(--slate-400);">${item.number}</div>
+          </td>
+          <td>
+            <div style="font-weight: 500;">${item.course}</div>
+            <div class="font-mono" style="font-size: 11px; color: var(--slate-400);">${item.batch}</div>
+          </td>
+          <td>${item.assignment}</td>
+          <td><span class="badge badge-not-submitted">#${item.attempts}</span></td>
+          <td class="font-mono">${item.score > 0 ? item.score + ' pts' : '<span style="color: var(--slate-400);">Ungraded</span>'}</td>
+          <td><span class="badge ${badgeClass}">${item.status}</span></td>
+          <td style="max-width: 220px; font-size: 12px; color: var(--slate-600);">${item.feedback || '<span style="color: var(--slate-400); italic;">None</span>'}</td>
+          <td style="text-align: right;">
+            <button class="btn btn-secondary btn-sm" onclick="promptRedo('${item.id}')">Redo</button>
+            <button class="btn btn-primary btn-sm" onclick="markDone('${item.id}')">Done</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      updateMetrics();
+    }
+
+    function filterAssignments() {
+      const search = document.getElementById('asg-search').value.toLowerCase();
+      const course = document.getElementById('asg-course-filter').value;
+      const status = document.getElementById('asg-status-filter').value;
+
+      const filtered = mockLearners.filter(l => {
+        const matchesSearch = !search || l.name.toLowerCase().includes(search) || l.number.toLowerCase().includes(search);
+        const matchesCourse = !course || l.course === course;
+        const matchesStatus = !status || l.status === status;
+        return matchesSearch && matchesCourse && matchesStatus;
+      });
+      renderAssignments(filtered);
+    }
+
+    function updateMetrics() {
+      const done = mockLearners.filter(l => l.status === 'Done').length;
+      const redo = mockLearners.filter(l => l.status === 'Redo').length;
+      const pending = mockLearners.filter(l => l.status === 'Not submitted' || l.status === 'Submitted').length;
+      document.getElementById('asg-total-metric').innerText = mockLearners.length;
+      document.getElementById('asg-done-metric').innerText = done;
+      document.getElementById('asg-redo-metric').innerText = redo;
+      document.getElementById('asg-pending-metric').innerText = pending;
+    }
+
+    function markDone(id) {
+      const item = mockLearners.find(l => l.id === id);
+      if (item) {
+        item.status = 'Done';
+        item.score = 85;
+        item.attempts = Math.max(item.attempts, 1);
+        item.feedback = 'Evaluator verified deliverables and marked Done.';
+        filterAssignments();
+        showToast('Assignment marked Done for ' + item.name);
+      }
+    }
+
+    function promptRedo(id) {
+      pendingRedoId = id;
+      document.getElementById('redo-note').value = '';
+      document.getElementById('redo-error').style.display = 'none';
+      document.getElementById('redo-modal').classList.add('active');
+    }
+
+    function closeRedoModal() {
+      document.getElementById('redo-modal').classList.remove('active');
+      pendingRedoId = null;
+    }
+
+    function confirmRedo() {
+      const note = document.getElementById('redo-note').value.trim();
+      if (!note || note.length < 5) {
+        document.getElementById('redo-error').style.display = 'block';
+        return;
+      }
+      const item = mockLearners.find(l => l.id === pendingRedoId);
+      if (item) {
+        item.status = 'Redo';
+        item.feedback = note;
+        closeRedoModal();
+        filterAssignments();
+        showToast('Assignment marked Redo with mandatory correction note.');
+      }
+    }
+
+    // Bulk Modal
+    function openBulkActionModal() {
+      const checked = document.querySelectorAll('.asg-row-chk:checked');
+      if (checked.length === 0) {
+        alert('Please select at least one row checkbox to perform bulk update.');
+        return;
+      }
+      document.getElementById('bulk-selected-count').innerText = checked.length;
+      document.getElementById('bulk-modal').classList.add('active');
+    }
+
+    function closeBulkModal() {
+      document.getElementById('bulk-modal').classList.remove('active');
+    }
+
+    function handleBulkStatusChange() {
+      const st = document.getElementById('bulk-target-status').value;
+      const noteGrp = document.getElementById('bulk-note-group');
+      if (st === 'Redo') {
+        noteGrp.style.display = 'block';
+      } else {
+        noteGrp.style.display = 'none';
+      }
+    }
+
+    function applyBulkStatusUpdate() {
+      const st = document.getElementById('bulk-target-status').value;
+      const note = document.getElementById('bulk-redo-note').value.trim();
+      if (st === 'Redo' && (!note || note.length < 5)) {
+        document.getElementById('bulk-note-error').style.display = 'block';
+        return;
+      }
+      const checked = document.querySelectorAll('.asg-row-chk:checked');
+      checked.forEach(chk => {
+        const id = chk.getAttribute('data-id');
+        const item = mockLearners.find(l => l.id === id);
+        if (item) {
+          item.status = st;
+          if (st === 'Redo') item.feedback = note;
+          if (st === 'Done') item.score = 85;
+        }
+      });
+      closeBulkModal();
+      filterAssignments();
+      showToast('Bulk update applied to ' + checked.length + ' learner records.');
+    }
+
+    function toggleSelectAllAsg(master) {
+      document.querySelectorAll('.asg-row-chk').forEach(c => c.checked = master.checked);
+    }
+
+    // Render Queue Table
+    function renderQueue() {
+      const tbody = document.getElementById('queue-table-body');
+      tbody.innerHTML = '';
+      mockQueue.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input type="checkbox" class="queue-row-chk" data-id="${item.id}" /></td>
+          <td>
+            <div style="font-weight: 600; color: var(--slate-900);">${item.name}</div>
+            <div class="font-mono" style="font-size: 11px; color: var(--slate-400);">${item.number}</div>
+          </td>
+          <td><span class="badge badge-not-submitted">${item.track}</span></td>
+          <td class="font-mono">${item.completionDate}</td>
+          <td><span class="font-mono" style="font-weight: 700;">${item.businessDays} business days</span></td>
+          <td>
+            ${item.isOverdue ? 
+              '<span class="badge badge-overdue">⚠️ Overdue (>15 Days)</span>' : 
+              '<span class="badge badge-done">✓ Within 15-Day Target</span>'
+            }
+          </td>
+          <td style="text-align: right;">
+            <button class="btn btn-secondary btn-sm" onclick="dropProject('${item.id}')">Drop</button>
+            <button class="btn btn-primary btn-sm" onclick="allocateSingle('${item.id}')">Allocate</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function toggleSelectAllQueue(master) {
+      document.querySelectorAll('.queue-row-chk').forEach(c => c.checked = master.checked);
+    }
+
+    function openBulkProjectAllocationModal() {
+      const checked = document.querySelectorAll('.queue-row-chk:checked');
+      if (checked.length === 0) {
+        alert('Please select eligible learners from the queue.');
+        return;
+      }
+      document.getElementById('alloc-selected-count').innerText = checked.length;
+      document.getElementById('project-alloc-modal').classList.add('active');
+    }
+
+    function closeProjectAllocModal() {
+      document.getElementById('project-alloc-modal').classList.remove('active');
+    }
+
+    function confirmProjectAllocation() {
+      const checked = document.querySelectorAll('.queue-row-chk:checked');
+      const prj = document.getElementById('alloc-project-select').value;
+      const count = checked.length;
+      closeProjectAllocModal();
+      showToast(`Allocated ${count} learners to project specification ${prj}. Allocation recorded in audit log.`);
+    }
+
+    function dropProject(id) {
+      const reason = prompt('BRD Part 7: Mandatory drop reason required (Min 5 chars):');
+      if (!reason || reason.trim().length < 5) {
+        alert('Project drop cancelled: A meaningful reason with at least 5 characters is mandatory.');
+        return;
+      }
+      showToast('Project allocation marked DROPPED. History preserved; zero completion credit awarded.');
+    }
+
+    function allocateSingle(id) {
+      document.getElementById('alloc-selected-count').innerText = '1';
+      document.getElementById('project-alloc-modal').classList.add('active');
+    }
+
+    // Render Timeline
+    function renderLearnerTimeline() {
+      const select = document.getElementById('timeline-learner-select').value;
+      const container = document.getElementById('timeline-container');
+      container.innerHTML = `
+        <div class="timeline-item">
+          <div class="timeline-node done">✓</div>
+          <div class="timeline-title">Batch Enrollment Confirmed</div>
+          <div class="timeline-time">2026-08-01 10:00 UTC | System Admin</div>
+          <div class="timeline-desc">Candidate enrolled into DA-2026-B1 under Data Analytics Master curriculum.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-node done">✓</div>
+          <div class="timeline-title">Mandatory Assignment 1: Python Milestone Passed</div>
+          <div class="timeline-time">2026-09-12 14:22 UTC | Evaluator: Dr. Rao</div>
+          <div class="timeline-desc">First attempt submitted via email; evaluator verified unit tests and graded 92/100 (Done).</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-node done">✓</div>
+          <div class="timeline-title">Mandatory Assignment 2: SQL Analytics Passed</div>
+          <div class="timeline-time">2026-10-02 11:45 UTC | Evaluator: Priya S.</div>
+          <div class="timeline-desc">All mandatory prerequisites completed (100% curriculum completion achieved). Candidate entered Project Queue.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-node active">⏳</div>
+          <div class="timeline-title">Project Allocation Queue Target (15 Business Days SLA)</div>
+          <div class="timeline-time">Elapsed: 17 business days (Excluding weekends)</div>
+          <div class="timeline-desc" style="border-left: 3px solid var(--danger-text);">
+            <strong>SLA Warning:</strong> 15-business-day allocation window has elapsed without project group assignment. Flagged for Project Coordinator immediate review.
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-node">○</div>
+          <div class="timeline-title">Project 1 Capstone Deliverable Submission</div>
+          <div class="timeline-time">Pending Allocation</div>
+          <div class="timeline-desc">Awaiting allocation to active capstone specifications (PRJ-DA-01 or PRJ-DA-02).</div>
+        </div>
+      `;
+    }
+
+    // Render Certificate Queue
+    function renderCertificates() {
+      const tbody = document.getElementById('cert-table-body');
+      tbody.innerHTML = '';
+      mockCertificates.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <div style="font-weight: 600; color: var(--slate-900);">${item.name}</div>
+            <div class="font-mono" style="font-size: 11px; color: var(--slate-400);">${item.number}</div>
+          </td>
+          <td>${item.track}</td>
+          <td><strong>${item.type}</strong></td>
+          <td><span class="badge badge-done">100% Passed</span></td>
+          <td>
+            ${item.nasscomCleared ? 
+              '<span class="badge badge-done">✓ Verified Cleared</span>' : 
+              '<span class="badge badge-overdue">❌ Pending Score</span>'
+            }
+          </td>
+          <td>
+            ${item.eligible ? 
+              '<span class="badge badge-done">Eligible for Issuance</span>' : 
+              `<span class="badge badge-redo" title="${item.blocker}">Blocked: NASSCOM Gate</span>`
+            }
+          </td>
+          <td style="text-align: right;">
+            ${item.eligible ? 
+              '<button class="btn btn-primary btn-sm" onclick="issueCert(\'' + item.id + '\')">Issue Certificate</button>' : 
+              '<button class="btn btn-secondary btn-sm" onclick="showBlocker(\'' + item.blocker + '\')">View Blocker</button>'
+            }
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function issueCert(id) {
+      showToast('Certificate generated with SHA-256 hash & public QR verification link.');
+    }
+
+    function showBlocker(msg) {
+      alert('BRD Part 8 Constraint:\n' + msg + '\n\nData Analytics and Data Science tracks strictly require verified NASSCOM clearance before course certificates can be issued.');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    // Initial Load
+    renderAssignments(mockLearners);
+    renderQueue();
+    renderLearnerTimeline();
+    renderCertificates();
+  </script>
+</body>
+</html>

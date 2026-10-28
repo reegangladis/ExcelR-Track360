@@ -43,6 +43,8 @@ from app.modules.assignments.schemas import (
     AssignmentSubmissionDetailResponse,
     AssignmentSubmissionPaginated,
     AssignmentSubmissionListItem,
+    BulkAssignmentStatusUpdateRequest,
+    BulkAssignmentStatusUpdateResponse,
 )
 from app.modules.assignments.service import AssignmentService
 
@@ -466,6 +468,32 @@ async def review_assignment_submission(
         user_agent=request.headers.get("user-agent"),
     )
     return _to_review_response(review)
+
+
+@router.post(
+    "/submissions/bulk-status",
+    response_model=BulkAssignmentStatusUpdateResponse,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_permission("assignment:review"))],
+)
+async def bulk_update_assignment_statuses(
+    payload: BulkAssignmentStatusUpdateRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Executes bulk status updates for assignment submissions across a cohort.
+    Enforces exact business statuses ('Not submitted', 'Submitted', 'Redo', 'Done').
+    Validates mandatory correction notes for Redo, creates reviews, and checks candidate project eligibility.
+    """
+    return await AssignmentService.bulk_update_assignment_statuses(
+        db=db,
+        payload=payload,
+        actor_id=current_user.id,
+        request_ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
 
 
 @router.get(

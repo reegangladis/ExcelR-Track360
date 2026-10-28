@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 import uuid
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class RubricCriterion(BaseModel):
@@ -148,6 +148,16 @@ class SubmissionReviewCreateRequest(BaseModel):
     internal_evaluator_notes: Optional[str] = None
     rubric_scores: List[ReviewRubricScoreItem] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def validate_corrections_note(self) -> "SubmissionReviewCreateRequest":
+        if self.review_outcome == "CORRECTIONS_REQUESTED":
+            feedback = (self.qualitative_feedback or "").strip()
+            if not feedback or len(feedback) < 5:
+                raise ValueError(
+                    "When requesting corrections (Redo), a meaningful correction note with at least 5 non-whitespace characters is mandatory."
+                )
+        return self
+
 
 class SubmissionReviewResponse(BaseModel):
     id: uuid.UUID
@@ -227,4 +237,30 @@ class AssignmentSubmissionPaginated(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class BulkAssignmentStatusItem(BaseModel):
+    submission_id: uuid.UUID
+    status: str = Field(..., description="Target status: NOT_SUBMITTED, SUBMITTED, CORRECTIONS_REQUESTED, APPROVED or Not submitted, Submitted, Redo, Done")
+    correction_note: Optional[str] = Field(None, description="Mandatory when status is Redo / CORRECTIONS_REQUESTED")
+    awarded_score: Optional[float] = None
+    evaluator_notes: Optional[str] = None
+
+
+class BulkAssignmentStatusUpdateRequest(BaseModel):
+    items: List[BulkAssignmentStatusItem] = Field(..., min_length=1, max_length=500)
+
+
+class BulkAssignmentStatusItemResult(BaseModel):
+    submission_id: uuid.UUID
+    success: bool
+    status: Optional[str] = None
+    error: Optional[str] = None
+
+
+class BulkAssignmentStatusUpdateResponse(BaseModel):
+    total_processed: int
+    successful_count: int
+    failed_count: int
+    results: List[BulkAssignmentStatusItemResult]
 

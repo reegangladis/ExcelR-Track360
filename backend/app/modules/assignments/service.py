@@ -29,6 +29,9 @@ from app.modules.assignments.schemas import (
     AssignmentUpdateRequest,
     AllocationCreateRequest,
     SubmissionReviewCreateRequest,
+    BulkAssignmentStatusUpdateRequest,
+    BulkAssignmentStatusUpdateResponse,
+    BulkAssignmentStatusItemResult,
 )
 
 
@@ -615,6 +618,13 @@ class AssignmentService:
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=f"Cannot approve submission: Total score ({total_score:.1f}) is below the required passing threshold ({assignment.passing_score:.1f}).",
                 )
+        elif payload.review_outcome == "CORRECTIONS_REQUESTED":
+            feedback = (payload.qualitative_feedback or "").strip()
+            if not feedback or len(feedback) < 5:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="When requesting corrections (Redo), a meaningful, non-whitespace correction note of at least 5 characters is mandatory.",
+                )
 
         # 3. Create SubmissionReview
         review = SubmissionReview(
@@ -818,4 +828,219 @@ class AssignmentService:
         res = await db.execute(query)
         submissions = list(res.scalars().all())
         return submissions, total, total_pages
+
+    @staticmethod
+    async def bulk_update_assignment_statuses(
+        db: AsyncSession,
+        payload: BulkAssignmentStatusUpdateRequest,
+        actor_id: uuid.UUID,
+        request_ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
+    ) -> BulkAssignmentStatusUpdateResponse:
+        now = utc_now()
+        results: List[BulkAssignmentStatusItemResult] = []
+        successful_count = 0
+        failed_count = 0
+
+        status_map = {
+            "NOT_SUBMITTED": "PENDING",
+            "Not submitted": "PENDING",
+            "SUBMITTED": "SUBMITTED",
+            "Submitted": "SUBMITTED",
+            "CORRECTIONS_REQUESTED": "CORRECTIONS_REQUESTED",
+            "Redo": "CORRECTIONS_REQUESTED",
+            "APPROVED": "APPROVED",
+            "Done": "APPROVED",
+        }
+
+        for item in payload.items:
+            norm_status = status_map.get(item.status, item.status)
+            if norm_status not in ["PENDING", "SUBMITTED", "CORRECTIONS_REQUESTED", "APPROVED"]:
+                results.append(BulkAssignmentStatusItemResult(
+                    submission_id=item.submission_id,
+                    success=False,
+                    error=f"Unsupported status '{item.status}'. Valid statuses: Not submitted, Submitted, Redo, Done."
+                ))
+                failed_count += 1
+                continue
+
+            # Validate Redo mandatory correction note
+            if norm_status == "CORRECTIONS_REQUESTED":
+                note = (item.correction_note or "").strip()
+                if not note or len(note) < 5:
+                    results.append(BulkAssignmentStatusItemResult(
+                        submission_id=item.submission_id,
+                        success=False,
+                        error="When setting status to Redo (CORRECTIONS_REQUESTED), a meaningful correction note with at least 5 characters is mandatory."
+                    ))
+                    failed_count += 1
+                    continue
+
+            # Fetch submission
+            sub_query = (
+                select(AssignmentSubmission)
+                .options(
+                    selectinload(AssignmentSubmission.attempts),
+                    selectinload(AssignmentSubmission.allocation).selectinload(AssignmentAllocation.assignment),
+                    selectinload(AssignmentSubmission.candidate),
+                )
+                .where(AssignmentSubmission.id == item.submission_id)
+            )
+            sub_res = await db.execute(sub_query)
+            submission = sub_res.scalar_one_or_none()
+            if not submission:
+                results.append(BulkAssignmentStatusItemResult(
+                    submission_id=item.submission_id,
+                    success=False,
+                    error="Assignment submission record not found."
+                ))
+                failed_count += 1
+                continue
+
+            old_sub_status = submission.current_submission_status
+            old_comp_status = submission.current_completion_status
+
+            # Ensure submission attempt exists if marking Submitted, Redo, or Done
+            if not submission.attempts and norm_status in ["SUBMITTED", "CORRECTIONS_REQUESTED", "APPROVED"]:
+                new_attempt = SubmissionAttempt(
+                    id=uuid.uuid4(),
+                    submission_id=submission.id,
+                    attempt_number=1,
+                    submitted_at_utc=now,
+                    is_late=False,
+                    lateness_minutes=0,
+                    created_at=now,
+                )
+                db.add(new_attempt)
+                await db.flush()
+                submission.attempts.append(new_attempt)
+                submission.total_attempts = 1
+                submission.latest_submitted_at_utc = now
+
+            latest_attempt = sorted(submission.attempts, key=lambda a: a.attempt_number)[-1] if submission.attempts else None
+
+            # Apply state update
+            if norm_status == "PENDING":
+                submission.current_submission_status = "PENDING"
+                submission.current_completion_status = "INCOMPLETE"
+            elif norm_status == "SUBMITTED":
+                submission.current_submission_status = "SUBMITTED"
+                submission.current_completion_status = "INCOMPLETE"
+                submission.latest_submitted_at_utc = now
+            elif norm_status == "CORRECTIONS_REQUESTED":
+                submission.current_submission_status = "CORRECTIONS_REQUESTED"
+                submission.current_completion_status = "INCOMPLETE"
+                if latest_attempt:
+                    review = SubmissionReview(
+                        id=uuid.uuid4(),
+                        attempt_id=latest_attempt.id,
+                        reviewer_id=actor_id,
+                        review_outcome="CORRECTIONS_REQUESTED",
+                        total_score=item.awarded_score or 0.0,
+                        qualitative_feedback=item.correction_note.strip(),
+                        internal_evaluator_notes=item.evaluator_notes.strip() if item.evaluator_notes else None,
+                        review_completed_at_utc=now,
+                        created_at=now,
+                    )
+                    db.add(review)
+            elif norm_status == "APPROVED":
+                submission.current_submission_status = "APPROVED"
+                submission.current_completion_status = "PASSED_COMPLETED"
+                score = item.awarded_score if item.awarded_score is not None else float(submission.allocation.assignment.passing_score)
+                submission.latest_score = score
+                if latest_attempt:
+                    review = SubmissionReview(
+                        id=uuid.uuid4(),
+                        attempt_id=latest_attempt.id,
+                        reviewer_id=actor_id,
+                        review_outcome="APPROVED",
+                        total_score=score,
+                        qualitative_feedback=item.correction_note.strip() if item.correction_note else "Bulk approved by operational evaluator.",
+                        internal_evaluator_notes=item.evaluator_notes.strip() if item.evaluator_notes else None,
+                        review_completed_at_utc=now,
+                        created_at=now,
+                    )
+                submission.updated_at = now
+                await db.flush()
+
+                # Check 100% prerequisite completion for candidate
+                candidate = submission.candidate
+                assignment = submission.allocation.assignment
+                track_id = assignment.track_id
+                m_count_q = select(func.count(Assignment.id)).where(
+                    Assignment.track_id == track_id,
+                    Assignment.is_mandatory == True,
+                    Assignment.is_active == True,
+                )
+                m_total = (await db.execute(m_count_q)).scalar() or 0
+
+                passed_q = (
+                    select(func.count(AssignmentSubmission.id))
+                    .join(AssignmentAllocation, AssignmentSubmission.allocation_id == AssignmentAllocation.id)
+                    .join(Assignment, AssignmentAllocation.assignment_id == Assignment.id)
+                    .where(
+                        AssignmentSubmission.candidate_id == candidate.id,
+                        AssignmentSubmission.current_completion_status == "PASSED_COMPLETED",
+                        Assignment.track_id == track_id,
+                        Assignment.is_mandatory == True,
+                    )
+                )
+                passed_count = (await db.execute(passed_q)).scalar() or 0
+
+                if m_total > 0 and passed_count >= m_total and not candidate.project_eligible:
+                    candidate.project_eligible = True
+                    await db.flush()
+                    await write_audit_log(
+                        db=db,
+                        action="candidate:project_eligible",
+                        actor_id=actor_id,
+                        resource_type="candidate",
+                        resource_id=str(candidate.id),
+                        details={
+                            "track_id": str(track_id),
+                            "passed_mandatory_assignments": passed_count,
+                            "total_mandatory_assignments": m_total,
+                            "reason": "100% mandatory assignment curriculum completed via bulk update",
+                        },
+                        request_ip=request_ip,
+                        user_agent=user_agent,
+                    )
+
+            submission.updated_at = now
+            await db.flush()
+
+            # Write individual audit record
+            await write_audit_log(
+                db=db,
+                action="assignment_submission:bulk_status_update",
+                actor_id=actor_id,
+                resource_type="assignment_submission",
+                resource_id=str(submission.id),
+                details={
+                    "old_submission_status": old_sub_status,
+                    "new_submission_status": submission.current_submission_status,
+                    "old_completion_status": old_comp_status,
+                    "new_completion_status": submission.current_completion_status,
+                    "status_label": item.status,
+                    "correction_note": item.correction_note,
+                },
+                request_ip=request_ip,
+                user_agent=user_agent,
+            )
+
+            results.append(BulkAssignmentStatusItemResult(
+                submission_id=item.submission_id,
+                success=True,
+                status=submission.current_submission_status,
+            ))
+            successful_count += 1
+
+        await db.commit()
+
+        return BulkAssignmentStatusUpdateResponse(
+            total_processed=len(payload.items),
+            successful_count=successful_count,
+            failed_count=failed_count,
+            results=results,
+        )
 

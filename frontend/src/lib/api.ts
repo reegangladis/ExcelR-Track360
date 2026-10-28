@@ -52,6 +52,10 @@ import {
   EmailQueueListResponse,
   EmailRetryRequest,
   AuditLogListResponse,
+  BulkAssignmentStatusUpdateRequest,
+  BulkAssignmentStatusUpdateResponse,
+  ProjectQueuePaginatedResponse,
+  ProjectDropRequest,
 } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
@@ -397,6 +401,14 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  bulkUpdateAssignmentStatuses: async (
+    payload: BulkAssignmentStatusUpdateRequest
+  ): Promise<BulkAssignmentStatusUpdateResponse> => {
+    return request<BulkAssignmentStatusUpdateResponse>('/assignments/submissions/bulk-status', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 
   // Project Management Endpoints (Phase 8)
   getProjects: async (params?: {
@@ -569,6 +581,28 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  },
+  dropProjectAllocation: async (
+    groupId: string,
+    allocationId: string,
+    payload: ProjectDropRequest
+  ): Promise<ProjectGroupItem> => {
+    return request<ProjectGroupItem>(`/projects/groups/${groupId}/allocations/${allocationId}/drop`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  getProjectQueue: async (params?: {
+    track_id?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<ProjectQueuePaginatedResponse> => {
+    const query = new URLSearchParams();
+    if (params?.track_id) query.append('track_id', params.track_id);
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    const qs = query.toString();
+    return request<ProjectQueuePaginatedResponse>(`/projects/queue${qs ? `?${qs}` : ''}`);
   },
   submitGroupDeliverable: async (
     groupId: string,

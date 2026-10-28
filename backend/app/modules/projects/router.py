@@ -45,6 +45,8 @@ from app.modules.projects.schemas import (
     ProjectProgressionRequestCreate,
     GroupReadinessResponse,
     GroupAdvanceRequest,
+    ProjectQueuePaginatedResponse,
+    ProjectDropRequest,
 )
 from app.modules.projects.service import ProjectService, ProjectGroupService
 
@@ -289,6 +291,33 @@ async def create_project_group(
 
 
 @router.get(
+    "/queue",
+    response_model=ProjectQueuePaginatedResponse,
+    dependencies=[Depends(require_permission("project:group_manage"))],
+)
+async def get_project_allocation_queue(
+    track_id: Optional[uuid.UUID] = Query(None, description="Filter queue by course track"),
+    batch_id: Optional[uuid.UUID] = Query(None, description="Filter queue by cohort batch"),
+    only_overdue: bool = Query(False, description="Filter only learners exceeding 15 business days"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns the project allocation queue for eligible candidates awaiting project placement.
+    Includes 15-business-day target tracking (excluding weekends) and overdue flags (BRD Part 7).
+    """
+    return await ProjectGroupService.get_project_queue(
+        db=db,
+        track_id=track_id,
+        batch_id=batch_id,
+        only_overdue=only_overdue,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get(
     "/groups",
     response_model=ProjectGroupPaginatedResponse,
     dependencies=[Depends(require_permission("project:group_manage"))],
@@ -484,6 +513,35 @@ async def allocate_project_to_group(
     group = await ProjectGroupService.allocate_project(
         db=db,
         group_id=group_id,
+        payload=payload,
+        actor_id=current_user.id,
+        request_ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    return _to_group_response(group)
+
+
+@router.post(
+    "/groups/{group_id}/allocations/{allocation_id}/drop",
+    response_model=ProjectGroupResponse,
+    dependencies=[Depends(require_permission("project:group_manage"))],
+)
+async def drop_project_allocation(
+    group_id: uuid.UUID,
+    allocation_id: uuid.UUID,
+    payload: ProjectDropRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Marks an allocated project as DROPPED with a mandatory coordinator reason (BRD Part 7).
+    Preserves historical record, does not award completion credit, and logs audit trail.
+    """
+    group = await ProjectGroupService.drop_project_allocation(
+        db=db,
+        group_id=group_id,
+        allocation_id=allocation_id,
         payload=payload,
         actor_id=current_user.id,
         request_ip=request.client.host if request.client else None,

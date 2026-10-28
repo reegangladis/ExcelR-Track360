@@ -254,15 +254,37 @@ class CertificateService:
             ineligibility_reasons.append(
                 "Candidate has not achieved any approved project deliverables or completed formal internship."
             )
-        if has_active_certificate:
-            ineligibility_reasons.append(
-                f"Candidate already has an active certificate ({existing_cert_number}) in status '{existing_cert.status}'."
-            )
+        # Check NASSCOM clearance rule for DA, BA, and DS tracks (BRD Part 8)
+        track_title_upper = (track.title or "").upper()
+        track_code_upper = (track.code or "").upper()
+        requires_nasscom = any(
+            kw in track_title_upper or kw in track_code_upper
+            for kw in ["DATA ANALYTICS", "BUSINESS ANALYTICS", "DATA SCIENCE", "DA-", "BA-", "DS-"]
+        )
+        nasscom_cleared = True
+        if requires_nasscom:
+            nasscom_cleared = getattr(candidate, "nasscom_cleared", False)
+            if not nasscom_cleared:
+                from app.modules.candidates.models import CandidateNote
+                notes_res = await db.execute(
+                    select(CandidateNote).where(CandidateNote.candidate_id == candidate.id)
+                )
+                notes = notes_res.scalars().all()
+                for n in notes:
+                    text = (n.note_text or "").upper()
+                    if "NASSCOM" in text and "CLEARED" in text:
+                        nasscom_cleared = True
+                        break
+            if not nasscom_cleared:
+                ineligibility_reasons.append(
+                    f"NASSCOM clearance is required for {track.title} course certificates before issuance. Official clearance record is pending."
+                )
 
         is_eligible = (
             assignments_completed
             and (projects_completed or internship_completed)
             and not has_active_certificate
+            and (not requires_nasscom or nasscom_cleared)
         )
 
         return CertificateEligibilityDiagnostic(

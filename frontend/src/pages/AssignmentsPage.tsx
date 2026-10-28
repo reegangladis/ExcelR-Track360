@@ -654,12 +654,12 @@ export const AssignmentsPage: React.FC = () => {
                           <td className="px-3 py-4">
                             {isApproved && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Approved
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Done
                               </span>
                             )}
                             {isCorrections && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                <Clock className="w-3.5 h-3.5" /> Corrections Req.
+                                <Clock className="w-3.5 h-3.5" /> Redo
                               </span>
                             )}
                             {isRejected && (
@@ -667,7 +667,17 @@ export const AssignmentsPage: React.FC = () => {
                                 Rejected
                               </span>
                             )}
-                            {!isApproved && !isCorrections && !isRejected && (
+                            {sub.current_submission_status === 'SUBMITTED' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                Submitted
+                              </span>
+                            )}
+                            {sub.current_submission_status === 'PENDING' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                Not submitted
+                              </span>
+                            )}
+                            {!isApproved && !isCorrections && !isRejected && sub.current_submission_status !== 'SUBMITTED' && sub.current_submission_status !== 'PENDING' && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                                 {sub.current_submission_status}
                               </span>
