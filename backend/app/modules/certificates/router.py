@@ -59,12 +59,17 @@ def _to_certificate_response(c: CertificateRecord) -> CertificateResponse:
         )
         for r in (c.revocations or [])
     ]
+    cand_number = c.candidate.candidate_number if getattr(c, "candidate", None) and hasattr(c.candidate, "candidate_number") else ""
+
     return CertificateResponse(
         id=c.id,
         candidate_id=c.candidate_id,
         candidate_display_name=c.candidate_display_name,
+        candidate_name=c.candidate_display_name,
+        candidate_number=cand_number,
         track_id=c.track_id,
         course_display_title=c.course_display_title,
+        course_or_track_title=c.course_display_title,
         internship_record_id=c.internship_record_id,
         serial_number=c.serial_number,
         certificate_type=c.certificate_type,
@@ -73,7 +78,11 @@ def _to_certificate_response(c: CertificateRecord) -> CertificateResponse:
         issue_date=c.issue_date,
         verification_hash=c.verification_hash,
         verification_qr_url=c.verification_qr_url,
+        verification_url=c.verification_qr_url,
+        qr_code_available=bool(c.verification_qr_url),
         status=c.status,
+        stage1_approved=bool(c.stage1_reviewed_at),
+        stage2_approved=bool(c.stage2_approved_at),
         pdf_file_asset_id=c.pdf_file_asset_id,
         requested_by_id=c.requested_by_id,
         requested_at=c.requested_at,
@@ -334,11 +343,14 @@ async def list_certificates(
         page_size=page_size,
     )
 
+    total_pages = max(1, (total + page_size - 1) // page_size) if total > 0 else 1
+
     return CertificateListResponse(
         items=[_to_certificate_response(c) for c in items],
         total=total,
         page=page,
         page_size=page_size,
+        total_pages=total_pages,
     )
 
 

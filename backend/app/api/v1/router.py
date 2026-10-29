@@ -15,8 +15,9 @@ from app.modules.audit.router import router as audit_router
 
 api_v1_router = APIRouter()
 
-# Core System Probes
+# Core System Probes (mounted at root /api/v1 and with /system prefix for Learnova integration)
 api_v1_router.include_router(system.router)
+api_v1_router.include_router(system.router, prefix="/system")
 
 # Domain Module Routers
 api_v1_router.include_router(auth_router, prefix="/auth", tags=["Auth"])

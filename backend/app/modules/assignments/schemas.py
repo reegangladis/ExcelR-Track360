@@ -226,6 +226,8 @@ class AssignmentSubmissionListItem(BaseModel):
     latest_score: Optional[float] = None
     due_date_utc: datetime
     latest_submitted_at_utc: Optional[datetime] = None
+    evaluator_name: Optional[str] = None
+    evaluator_notes: Optional[str] = None
     is_late: bool = False
 
     model_config = ConfigDict(from_attributes=True)

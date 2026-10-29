@@ -1640,6 +1640,8 @@ class ProjectGroupService:
                 candidate_id=c.id,
                 candidate_number=c.candidate_number,
                 candidate_name=c.full_name,
+                first_name=c.first_name,
+                last_name=c.last_name,
                 email=c.email,
                 track_id=c_track.id if c_track else uuid.uuid4(),
                 track_title=c_track.title if c_track else "General Track",
@@ -1647,8 +1649,13 @@ class ProjectGroupService:
                 batch_code=c_batch.batch_code if c_batch else None,
                 completed_projects_count=c.completed_projects_count,
                 queue_entry_date=entry_date,
+                assignments_completed_at=entry_date,
                 business_days_in_queue=b_days,
+                business_days_elapsed=b_days,
+                sla_target_business_days=15,
                 is_overdue_15_days=is_overdue,
+                is_overdue=is_overdue,
+                allocation_status="PENDING_ALLOCATION",
             ))
 
         queue_items.sort(key=lambda x: (not x.is_overdue_15_days, -x.business_days_in_queue))
@@ -1665,6 +1672,11 @@ class ProjectGroupService:
             page=page,
             page_size=page_size,
             total_pages=total_pages,
+            sla_summary={
+                "target_days": 15,
+                "total_in_queue": total,
+                "total_overdue": total_overdue,
+            },
         )
 
     @staticmethod

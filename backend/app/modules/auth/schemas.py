@@ -54,6 +54,7 @@ class LoginResponse(BaseModel):
     """Response returned upon successful authentication."""
     user: UserResponse
     csrf_token: str
+    session_token: Optional[str] = None
     message: str = "Login successful"
 
 

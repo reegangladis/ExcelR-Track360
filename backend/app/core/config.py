@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     APP_NAME: str = Field(default="ExcelR Track360", description="Application display name")
     API_V1_PREFIX: str = Field(default="/api/v1", description="Global prefix for v1 API routes")
     HOST: str = Field(default="0.0.0.0", description="Bind host")
-    PORT: int = Field(default=8000, description="Bind port")
+    PORT: int = Field(default=8001, description="Bind port")
     
     # Security
     SECRET_KEY: str = Field(
@@ -42,7 +42,13 @@ class Settings(BaseSettings):
     
     # CORS Settings
     CORS_ORIGINS: Union[List[str], str] = Field(
-        default=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"],
+        default=[
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5174",
+        ],
         description="Allowed CORS origins"
     )
     

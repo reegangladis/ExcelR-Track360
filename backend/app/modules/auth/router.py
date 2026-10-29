@@ -112,6 +112,7 @@ async def login(
     return LoginResponse(
         user=user_response,
         csrf_token=csrf_token,
+        session_token=token,
         message="Session established successfully",
     )
 

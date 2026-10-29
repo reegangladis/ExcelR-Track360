@@ -13,6 +13,7 @@ class CertificateEligibilityDiagnostic(BaseModel):
     """Prerequisite diagnostics for a candidate prior to certificate issuance."""
     candidate_id: uuid.UUID
     candidate_name: str
+    candidate_number: Optional[str] = None
     track_id: uuid.UUID
     track_title: str
     total_mandatory_assignments: int
@@ -30,6 +31,15 @@ class CertificateEligibilityDiagnostic(BaseModel):
     has_active_certificate: bool
     existing_certificate_id: Optional[uuid.UUID] = None
     existing_certificate_number: Optional[str] = None
+
+    # Learnova Integration Compatibility Fields
+    is_course_certificate_eligible: bool = False
+    is_internship_certificate_eligible: bool = False
+    mandatory_assignments_completed: bool = False
+    nasscom_clearance_passed: bool = True
+    completed_projects_count: int = 0
+    internship_accredited_months: int = 0
+    unmet_prerequisites: List[str] = Field(default_factory=list)
 
 
 class CertificateIssueRequest(BaseModel):
@@ -126,6 +136,15 @@ class CertificateResponse(BaseModel):
     approvals: List[CertificateApprovalItem] = []
     revocations: List[CertificateRevocationItem] = []
 
+    # Learnova Integration Compatibility Fields
+    candidate_name: Optional[str] = None
+    candidate_number: Optional[str] = None
+    course_or_track_title: Optional[str] = None
+    stage1_approved: bool = False
+    stage2_approved: bool = False
+    verification_url: Optional[str] = None
+    qr_code_available: bool = False
+
 
 class CertificatePublicVerifyResponse(BaseModel):
     """Public credential verification response. Contains zero PII/sensitive internal state."""
@@ -150,3 +169,4 @@ class CertificateListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+    total_pages: int = 1

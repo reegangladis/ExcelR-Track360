@@ -382,6 +382,8 @@ class ProjectQueueItem(BaseModel):
     candidate_id: uuid.UUID
     candidate_number: str
     candidate_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     email: str
     track_id: uuid.UUID
     track_title: str
@@ -389,8 +391,13 @@ class ProjectQueueItem(BaseModel):
     batch_code: Optional[str] = None
     completed_projects_count: int
     queue_entry_date: datetime
+    assignments_completed_at: Optional[datetime] = None
     business_days_in_queue: int
+    business_days_elapsed: int = 0
+    sla_target_business_days: int = 15
     is_overdue_15_days: bool
+    is_overdue: bool = False
+    allocation_status: str = "PENDING_ALLOCATION"
 
 
 class ProjectQueuePaginatedResponse(BaseModel):
@@ -400,6 +407,7 @@ class ProjectQueuePaginatedResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+    sla_summary: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ProjectDropRequest(BaseModel):

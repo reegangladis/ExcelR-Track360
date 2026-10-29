@@ -287,9 +287,13 @@ class CertificateService:
             and (not requires_nasscom or nasscom_cleared)
         )
 
+        nasscom_passed = nasscom_cleared if requires_nasscom else True
+        is_course_eligible = assignments_completed and nasscom_passed
+
         return CertificateEligibilityDiagnostic(
             candidate_id=candidate.id,
             candidate_name=f"{candidate.first_name} {candidate.last_name}".strip(),
+            candidate_number=candidate.candidate_number,
             track_id=track.id,
             track_title=track.title,
             total_mandatory_assignments=total_mandatory,
@@ -307,6 +311,13 @@ class CertificateService:
             has_active_certificate=has_active_certificate,
             existing_certificate_id=existing_cert_id,
             existing_certificate_number=existing_cert_number,
+            is_course_certificate_eligible=is_course_eligible,
+            is_internship_certificate_eligible=is_eligible,
+            mandatory_assignments_completed=assignments_completed,
+            nasscom_clearance_passed=nasscom_passed,
+            completed_projects_count=approved_projects_count,
+            internship_accredited_months=accredited_duration,
+            unmet_prerequisites=ineligibility_reasons,
         )
 
     @classmethod
